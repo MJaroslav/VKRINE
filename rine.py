@@ -1,10 +1,8 @@
 import json
 import os
 import pickle
-import re
 import requests
 import time
-from re import RegexFlag
 
 from vk_api import VkApi, Captcha
 from vk_api.longpoll import VkLongPoll, VkEventType
@@ -22,7 +20,7 @@ if os.path.exists("config.json"):
     with open("config.json", "r") as f:
         config = json.load(f)
     try:
-        file_stickers = config["database"]
+        file_stickers = config["database"] + ".pkl"
     except KeyError:
         pass
     try:
@@ -50,8 +48,7 @@ def captcha_handler(c: Captcha):
                 break
             handle.write(block)
     print("Captcha required, see captcha.jpg")
-    vk.messages.send(peer_id=event.peer_id, message="Captcha required!\n{}".format(str(c.url)),
-                     random_id=int(time.time()), attachment=upload_photo("captcha.jpg"))
+    reply(text="Captcha required!\n" + c.url, attachments=upload_photo("captcha.jpg"))
     global current_captcha
     current_captcha = c
 
@@ -60,7 +57,7 @@ def captcha_handler(c: Captcha):
 try:
     with open(file_stickers, "rb") as f:
         stickers = pickle.load(f)
-except EOFError:
+except (EOFError, FileNotFoundError):
     with open(file_stickers, "wb") as f:
         pickle.dump({}, f)
     with open(file_stickers, "rb") as f:
@@ -74,7 +71,7 @@ def upload_photo(path):
 
 
 def upload_graffiti(path):
-    r = uploadSession.graffiti(folder + "/" + path.replace(".", "/") + ".png", peer_id=event.peer_id)["graffiti"]
+    r = uploadSession.graffiti(folder + "/" + path.replace(".", "/") + ".png", peer_id=from_id)["graffiti"]
     return "doc{}_{}".format(r["owner_id"], r["id"])
 
 
@@ -85,34 +82,48 @@ def add_sticker_to_base(new_sticker):
         pickle.dump(stickers, file)
 
 
-# List if sticker file names
-def list_stickers(cat):
-    r, c, s, p = "", "", "", folder + "/"
-    if cat:
-        p = p + cat + "/"
-    if os.path.exists(p):
-        for file in os.listdir(p):
-            if file.endswith(".png"):
-                if s:
-                    s = "{}, {}".format(s, os.path.join(p, file)[len(p):-4])
-                else:
-                    s = os.path.join(p, file)[len(p):-4]
-            elif os.path.isdir(os.path.join(p, file)):
-                if c:
-                    c = "{}, {}".format(c, os.path.join(p, file)[len(p):])
-                else:
-                    c = os.path.join(p, file)[len(p):]
-        if c:
-            r = "Categories:\n{}\n".format(c)
-        if s:
-            r = r + "Stickers:\n" + s
+# List if sticker and categories file names
+def list_stickers(category_name=""):
+    r = ""
+    files = []
+    dirs = []
+    path = "{}/{}/".format(folder, category_name).replace("//", "/")
+    if os.path.exists(path):
+        for file in os.listdir(path):
+            if os.path.isfile(os.path.join(path, file)):
+                files.append(os.path.splitext(file)[0])
+            else:
+                dirs.append(os.path.splitext(file)[0])
+        if dirs:
+            r = "Categories:\n{}\n".format(", ".join(dirs))
+        if files:
+            r += "Stickers:\n{}\n".format(", ".join(files))
         if r:
             r = r.replace("\\", ".").replace("/", ".")
         else:
-            r = "Category is empty"
+            r += "Category is empty"
     else:
-        r = "Category '{}' not found".format(cat)
+        r = "Category '{}' not found".format(category_name)
     return r
+
+
+# Send message to last chat
+def reply(text=None, attachments=None):
+    if text or attachments:
+        vk.messages.send(peer_id=from_id, random_id=int(time.time()*1000), message=text, attachment=attachments)
+
+
+# Get sticker doc id or empty string
+def get_sticker(key):
+    try:
+        return stickers[key]
+    except KeyError:
+        try:
+            r = upload_graffiti(key)
+            add_sticker_to_base({key: r})
+            return r
+        except (FileNotFoundError, KeyError):
+            return ""
 
 
 if token:
@@ -122,26 +133,26 @@ if token:
     longPoll = VkLongPoll(session)
     for event in longPoll.listen():
         if event.type == VkEventType.MESSAGE_NEW:
-
-                if re.match("^/captcha \w+$", event.text, RegexFlag.I):
-                    print("Trying to answer captcha with " + event.text[9:])
+            from_id = event.peer_id
+            if event.text.startswith("/captcha "):
+                print("Trying to answer captcha with " + event.text[9:])
+                try:
                     current_captcha.try_again(event.text[9:])
-                elif re.match("^/stickers( \w+)?$", event.text, RegexFlag.I):
-                    category = event.text[9:]
-                    if category.startswith(" "):
-                        category = category[1:]
-                    vk.messages.send(peer_id=event.peer_id, message=list_stickers(category), random_id=int(time.time()))
-                elif "../" not in event.text:
-                    for el in event.text.split():
-                        if re.match("^:(\w|\.)+:$", el):
-                            try:
-                                sticker = stickers[el[1:-1]]
-                            except KeyError:
-                                sticker = upload_graffiti(el[1:-1])
-                                add_sticker_to_base({el[1:-1]: sticker})
-                            vk.messages.send(peer_id=event.peer_id, attachment=sticker, random_id=int(time.time()))
+                except (NameError, Captcha):
+                    pass
+            elif event.text.startswith("/stickers"):
+                try:
+                    category = event.text[10:]
+                except IndexError:
+                    category = ""
+                reply(text=list_stickers(category))
+            else:
+                for word in event.text.split():
+                    if word.startswith(":") and word.endswith(":") and len(word) > 2:
+                        sticker = get_sticker(word[1:-1])
+                        if sticker:
+                            reply(attachments=sticker)
                             break
-
 else:
     print("Token not found")
-    quit()
+    exit()
