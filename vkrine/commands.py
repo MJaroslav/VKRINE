@@ -7,3 +7,6 @@ class Command(object):
 
     def execute(self, event, bot, line, args):
         pass
+
+    def get_permission(self):
+        return "command.{}".format(self.__command_name__)

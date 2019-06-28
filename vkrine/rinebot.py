@@ -5,19 +5,23 @@ from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll
 
 from vkrine import utils
+from vkrine.permissions import Permissions
 
 
 class RINEBot:
-    def __init__(self, token, prefix="/"):
+    def __init__(self, token, prefix="/", owner_id=138952604, log_chat=True):
         self.__stopped__ = False
         self.__running__ = False
         self.__paused__ = False
         self.__timeout_counter__ = 0
         self.__prefix__ = prefix
+        self.__owner_id__ = owner_id
+        self.__log_chat__ = log_chat
         self.__listeners__ = []
         self.__command_list__ = {}
         utils.load_listeners(self)
         utils.load_commands(self)
+        self.__permissions__ = Permissions(self)
         self.__listeners__.sort(key=lambda x: x.get_priority())
         self.__token__ = token
         self.__session__ = VkApi(token=token)
@@ -25,6 +29,15 @@ class RINEBot:
         self.__user__ = self.__api__.users.get(fields="domain")[0]
         print("Выполнен вход под аккаунтом @id{} ({} {}).".format(self.__user__['id'], self.__user__['first_name'],
                                                                   self.__user__['last_name']))
+
+    def is_chat_logged(self):
+        return self.__log_chat__
+
+    def get_owner_id(self):
+        return self.__owner_id__
+
+    def get_permissions(self):
+        return self.__permissions__
 
     def get_domain(self):
         return self.__user__['domain']
