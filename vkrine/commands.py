@@ -10,3 +10,9 @@ class Command(object):
 
     def get_permission(self):
         return "command.{}".format(self.__command_name__)
+
+    def get_help(self):
+        pass
+
+    def get_help_full(self):
+        pass

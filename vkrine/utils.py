@@ -3,6 +3,7 @@ import os
 import re
 import time
 from urllib.request import urlopen
+import sys
 
 
 def print_logo():
@@ -107,3 +108,31 @@ def sleep_log(sleep_time, step_time=0.5, sleep_char=".", end="\n"):
         print(sleep_char, end="")
         time.sleep(step_time)
     print("", end=end)
+
+
+def decode_text(text):
+    return text.replace(r'&lt;', r'<').replace(r'&gt;', r'>').replace(r'&quot;', r'"').replace(r'&amp;', r'&')
+
+
+def decode_quot(text):
+    return text.replace(r'\"', r'"').replace(r"\'", r"'")
+
+
+class Unbuffered(object):
+    def __init__(self, stream):
+        self.stream = stream
+
+    def write(self, data):
+        self.stream.write(data)
+        self.stream.flush()
+
+    def writelines(self, data):
+        self.stream.writelines(data)
+        self.stream.flush()
+
+    def __getattr__(self, attr):
+        return getattr(self.stream, attr)
+
+
+def set_unbuffered_logger():
+    sys.stdout = Unbuffered(sys.stdout)

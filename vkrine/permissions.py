@@ -1,5 +1,6 @@
 import json
 import os
+from vkrine.exceptions import NotEnoughPermissions
 
 
 def __get_default__():
@@ -84,4 +85,4 @@ class Permissions(object):
             for existed_permission in permissions:
                 if existed_permission in check:
                     return True
-            return False
+            raise NotEnoughPermissions(permission)
