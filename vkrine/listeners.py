@@ -2,8 +2,12 @@ from vk_api.longpoll import VkEventType
 
 
 class Listener(object):
-    def __init__(self, priority=0):
+    def __init__(self, name, priority=0):
         self.__priority__ = priority
+        self.__listener_name__ = name
+
+    def get_listener_name(self):
+        return self.__listener_name__
 
     def listen(self, event, bot):
         pass
@@ -13,8 +17,8 @@ class Listener(object):
 
 
 class MessageListener(Listener):
-    def __init__(self, can_execute_by_self=False, priority=0):
-        super().__init__(priority)
+    def __init__(self, name, can_execute_by_self=False, priority=0):
+        super().__init__(name, priority)
         self.__can_execute_by_self__ = can_execute_by_self
 
     def __can_execute__(self, event, bot):

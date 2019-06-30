@@ -33,10 +33,11 @@ class CommandListener(MessageListener):
                 try:
                     if bot.get_permissions().has_permission(command.get_permission(), event.user_id, event.peer_id):
                         line = " ".join(command_raw[1:])
-                        return command.execute(event, bot, vkrine.utils.decode_quot(line), shlex.split(line))
+                        command.execute(event, bot, vkrine.utils.decode_quot(line), shlex.split(line))
+                        return True
                 except RineException as rine_error:
                     rine_error.reply(event, bot)
 
 
 def get_listeners():
-    return [ChatLoggerListener(), CommandListener()]
+    return [ChatLoggerListener("rine_chat_logger", priority=-1), CommandListener("rine_commands")]

@@ -11,7 +11,6 @@ class CommandExit(Command):
         bot.reply(event, "Бот остановлен!")
         bot.stop()
         print("Бот остановлен!")
-        return True
 
 
 class CommandEcho(Command):
@@ -22,12 +21,11 @@ class CommandEcho(Command):
             bot.reply(event, "Линия:\n{}\nАргументы:\n{}".format(line, "\n".join(args)))
         else:
             bot.reply(event, line)
-        return True
 
 
 class CommandInfo(Command):
     def execute(self, event, bot, line, args):
-        return True
+        pass
 
 
 def get_commands():

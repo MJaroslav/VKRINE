@@ -18,6 +18,7 @@ class RINEBot:
         self.__owner_id__ = owner_id
         self.__log_chat__ = log_chat
         self.__listeners__ = []
+        self.__listeners_ids_ = {}
         self.__command_list__ = {}
         utils.load_listeners(self)
         utils.load_commands(self)
@@ -56,6 +57,11 @@ class RINEBot:
 
     def add_listener(self, listener):
         self.__listeners__.append(listener)
+        self.__listeners_ids_[listener.get_listener_name()] = listener
+
+    def get_listener(self, name):
+        if name in self.__listeners_ids_:
+            return self.__listeners_ids_[name]
 
     def get_listeners(self):
         return self.__listeners__
