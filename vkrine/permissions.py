@@ -1,88 +1,71 @@
-import json
 import os
-from vkrine.exceptions import NotEnoughPermissions
+import json
+import vkrine.utils as utils
+from .modules import BotModule
 
+MODULE_NAME = "permissions"
 
-def __get_default__():
-    result = {'roles': {}, 'users': {}, 'chats': {}}
-    result['roles']['default'] = {'parents': [], 'permissions': ["command.echo", "command.help", "command.info"]}
-    result['roles']['admin'] = {'parents': ["default"], 'permissions': ["*"]}
-    result['users']['138952604'] = {'roles': ["admin"], 'permissions': ["*"]}
-    return result
+OWNER_PERMISSION_KEY = "@owner"
+ADMIN_PERMISSION_KEY = "@admin"
+MEMBER_PERMISSION_KEY = "@member"
+PRIVATE_PERMISSION_KEY = "@private"
 
+DEFAULT = {
+    OWNER_PERMISSION_KEY: [
+        "command.locale.chat"
+    ],
+    ADMIN_PERMISSION_KEY: [],
+    MEMBER_PERMISSION_KEY: [
+        "command.locale",
+        "command.locale.personal",
+        "command.echo",
+        "command.help"
+    ],
+    PRIVATE_PERMISSION_KEY: [
+        "command.locale",
+        "command.locale.personal",
+        "command.echo",
+        "command.help"
+    ]
+}
 
-def __load_or_create__():
-    file_path = "runtime/permissions.json"
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="UTF-8") as file:
-            return json.load(file)
-    else:
-        with open(file_path, "w", encoding="UTF-8") as file:
-            default = __get_default__()
-            json.dump(default, file, ensure_ascii=False, indent=2)
-            return default
-
-
-def split_permission(permission: str):
-    result = ["*", permission]
-    data = permission.split(".")
-    if len(data) > 1:
-        i = 1
-        j = len(data)
-        while i < j:
-            result.append("{}.*".format(".".join(data[0:i])))
-            i += 1
-    return result
-
-
-class Permissions(object):
+class Permissions(BotModule):
     def __init__(self, bot):
-        self.__bot__ = bot
-        self.__data__ = __load_or_create__()
+        super().__init__(MODULE_NAME, bot)
+        self.FILEPATH = self.BOT.RUNTIME + "/permissions.json"
+        self.__permissions__ = {}
 
-    def get_from_role(self, name):
-        result = []
-        if name in self.__data__['roles']:
-            result += self.__data__['roles'][name]['permissions']
-            for parent in self.__data__['roles'][name]['parents']:
-                result += self.get_from_role(parent)
-        return result
+    def reload(self):
+        self.load()
 
-    def get_roles(self, user_id, peer_id):
-        result = []
-        user_str = str(user_id)
-        peer_str = str(peer_id)
-        if user_str in self.__data__['users']:
-            result += self.__data__['users'][user_str]['roles']
-        if peer_str in self.__data__['chats']:
-            result += self.__data__['chats'][peer_str]['roles']
-        return result
+    def load(self):
+        self.__permissions__ = utils.load_json(self.FILEPATH, DEFAULT)
 
-    def get_from_ids(self, user_id, peer_id):
-        result = []
-        user_str = str(user_id)
-        peer_str = str(peer_id)
-        if user_str in self.__data__['users']:
-            result += self.__data__['users'][user_str]['permissions']
-        if peer_str in self.__data__['chats']:
-            result += self.__data__['chats'][peer_str]['permissions']
-        return result
+    def save(self):
+        utils.save_json(self.__permissions__, self.FILEPATH)
 
-    def get_permissions(self, user_id=0, peer_id=0):
-        permissions = []
-        permissions += self.get_from_ids(user_id, peer_id)
-        permissions += self.get_from_role("default")
-        for role in self.get_roles(user_id, peer_id):
-            permissions += self.get_from_role(role)
-        return permissions
-
-    def has_permission(self, permission, user_id, peer_id):
-        if user_id == self.__bot__.get_owner_id() + 1:
-            return True
+    def have_permission(self, event, permission):
+        members = self.BOT.VK.messages.getConversationMembers(
+            peer_id=event.peer_id)["items"]
+        member = utils.find_member(members, event.user_id)
+        if event.peer_id < 2000000000:
+            if utils.in_level_list(self.__permissions__[PRIVATE_PERMISSION_KEY], permission):
+                return True
         else:
-            permissions = self.get_permissions(user_id, peer_id)
-            check = split_permission(permission)
-            for existed_permission in permissions:
-                if existed_permission in check:
+            if utils.member_is_admin(member, is_owner=True):
+                if utils.in_level_list(self.__permissions__[OWNER_PERMISSION_KEY], permission):
                     return True
-            raise NotEnoughPermissions(permission)
+            if utils.member_is_admin(member):
+                if utils.in_level_list(self.__permissions__[ADMIN_PERMISSION_KEY], permission):
+                    return True
+            if utils.in_level_list(self.__permissions__[MEMBER_PERMISSION_KEY], permission):
+                return True
+        chat_id = str(event.peer_id)
+        user_id = str(event.user_id)
+        if chat_id in self.__permissions__:
+            if user_id in self.__permissions__:
+                if utils.in_level_list(self.__permissions__[chat_id][user_id], permission):
+                    return True
+        if user_id in self.__permissions__:
+            if utils.in_level_list(self.__permissions__[user_id], permission):
+                return True
