@@ -35,7 +35,7 @@ class MessageListener(EventListener):
 
 class ChatLogger(MessageListener):
     def _on_message_(self, event, bot):
-        if "messages" == bot.SETTINGS.get_option("chat.logging", chat_id=event.peer_id):
+        if "messages" in bot.SETTINGS.get_option("chat.logging", chat_id=event.peer_id):
             utils.log_message_event(bot, event)
 
 
@@ -54,7 +54,7 @@ class CommandHandler(MessageListener):
                 command = self.get_command(event, command_raw[0])
                 if bot.PERMISSIONS.have_permission(event, command.get_permission()):
                     line = " ".join(command_raw[1:])
-                    if "commands" == bot.SETTINGS.get_option("chat.logging", event.peer_id):
+                    if "commands" in bot.SETTINGS.get_option("chat.logging", event.peer_id):
                         utils.log_message_event(bot, event)
                     command.run(event, bot, utils.decode_quot(
                         line), shlex.split(line))
