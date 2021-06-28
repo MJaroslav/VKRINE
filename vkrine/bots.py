@@ -181,7 +181,7 @@ class UserBot(BotBase):
     
     def login(self):
         self._session_ = VkApi(token=self._token_)
-        self._upload_ = VkUpload(self._session_)
+        self._upload_session_ = VkUpload(self._session_)
         self._vk_ = self._session_.get_api()
         login_info = self.vk().users.get(fields="domain")[0]
         self._id_ = login_info["id"]
