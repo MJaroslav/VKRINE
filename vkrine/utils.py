@@ -4,49 +4,70 @@ import urllib.request as request
 import datetime
 import re
 import vkrine.consts as consts
+import time
+from vk_api.longpoll import Event as UserEvent
+from vk_api.bot_longpoll import DotDict as GroupEvent
+from .logger import *
 
 class MessageBuilder(object):
-    def __init__(self, message=""):
-        self.__message__ = message
-        self.__attachments__ = []
-        self.__translate__ = []
+    def __init__(self, bot, message=""):
+        self._message_ = message
+        self._attachments_ = []
+        self._translate_ = []
+        self._bot_ = bot
     
     def attachments(self, attachments):
         attachments_type = type(attachments)
         if attachments_type is list:
-            self.__attachments__ += attachments
+            self._attachments_ += attachments
         elif attachments_type is str:
-            self.__attachments__ += attachments.split(",")
+            self._attachments_ += attachments.split(",")
         return self
     
     def attachment(self, attachment):
-        self.__attachments__.append(attachment)
+        self._attachments_.append(attachment)
         return self
     
     def newline(self, double=False):
-        self.__message__ += "\n\n" if double else "\n"
+        self._message_ += "\n\n" if double else "\n"
         return self
 
     def text(self, text, *args, **kwargs):
-        self.__message__ += text.format(*args, **kwargs)
+        self._message_ += text.format(*args, **kwargs)
         return self
     
     def translate(self, key, *args, **kwargs):
-        self.__translate__.append((key, args, kwargs))
-        self.__message__ += "{}"
+        self._translate_.append((key, args, kwargs))
+        self._message_ += "{}"
         return self
 
-    def send(self, bot, peer_id=None, event=None):
-        if self.__translate__:
-            target = event if event else peer_id
-            self.__translate__ = list(map(lambda element: bot.L10N.translate(target, element[0], *element[1], \
-                **element[2]), self.__translate__))
-            message = self.__message__.format(*self.__translate__)
+    def send(self, destination):
+        destination_type = type(destination)
+        peer_id = 0
+        if destination_type is UserEvent:
+            peer_id = destination.peer_id
+        elif destination_type is GroupEvent:
+            peer_id = destination.peer_id
+        elif destination_type is int:
+            peer_id = destination
         else:
-            message = self.__message__
-        attachment = self.__attachments__[:10]
-        peer_id = peer_id if peer_id else event.peer_id
-        bot.send(peer_id, message, attachment)
+            raise TypeError("Destination must be only int (peer_id) or longpoll event")
+        if self._translate_:
+            self._translate_ = list(map(lambda element: self._bot_.l10n().translate(destination, element[0], *element[1], \
+                **element[2]), self._translate_))
+            message = self._message_.format(*self._translate_)
+        else:
+            message = self._message_
+        attachment = self._attachments_[:10]
+        if message and not attachment:
+            self._bot_.vk().messages.send(peer_id=peer_id, message=message, \
+                random_id=int(time.time()*1000))
+        elif attachment and not message:
+            self._bot_.vk().messages.send(peer_id=peer_id, attachment=attachment, \
+                random_id=int(time.time()*1000))
+        elif attachment and message:
+            self._bot_.vk().messages.send(peer_id=peer_id, message=message, \
+                attachment=attachment, random_id=int(time.time()*1000))
     
 def emoji_numbers(number):
     result = ""
@@ -102,18 +123,24 @@ def find_member(members, user_id):
         if member['member_id'] == user_id:
             return member
 
-def log_message_event(bot, event):
-    if event.from_me:
-        user = bot.VK.users.get(user_ids=bot.ID)[0]
+def parse_message_event_to_string(bot, event):
+    if event.user_id > 0:
+        sender_type = "id"
+        user = bot._vk_.users.get(user_ids=event.user_id)[0]
+        name = user['first_name'] + " " + user['last_name']
+        sender_id = user['id']
     else:
-        user = bot.VK.users.get(user_ids=event.user_id)[0]
-    item = event.peer_id, bot.VK.messages.getConversationsById(peer_ids=event.peer_id)['items']
-    if item[0] > 2000000000:
-        peer = "{} ({}) | ".format(item[0], item[1][0]['chat_settings']['title'])
+        sender_type = "club"
+        group = bot._vk_.groups.getById(group_id=-event.user_id)[0]
+        name = group["name"]
+        sender_id = group['id']
+    items = event.peer_id, bot._vk_.messages.getConversationsById(peer_ids=event.peer_id)['items']
+    if items[0] > 2000000000:
+        peer = "{} ({}) | ".format(items[0],
+            items[1][0]['chat_settings']['title'])
     else:
         peer = ""
-    now = datetime.datetime.now().strftime("%d-%m-%Y %H:%M")
-    print("{}: {}@id{} ({} {}): {}".format(now, peer, user['id'], user['first_name'], user['last_name'], decode_text(event.text)))
+    return "{}@{}{} ({}): {}".format(peer, sender_type, sender_id, name, decode_text(event.text))
 
 
 def bot_is_admin_in_chat(bot, chat_id):
@@ -151,10 +178,14 @@ def check_connection(url):
 def try_remove_prefix(text, bot, peer_id):
     mentioned = re.sub(r'^((\[(\S+?)\|\S+?\])|(@(\S+)( \(\S+?\))?))',
                        r'\3\5', text, re.IGNORECASE + re.DOTALL)
-    prefix = bot.SETTINGS.get_option("chat.prefix", "/", peer_id)
+    prefix = bot.settings().get_option("chat.prefix", "/", peer_id)
     if len(mentioned) != len(text):
         domain = mentioned.split()[0].lower()
-        if domain == "id{}".format(bot.ID) or domain == bot.DOMAIN:
+        if bot.get_architecture() == "user":
+            architecture = "id"
+        else:
+            architecture = "club"
+        if domain == "{}{}".format(architecture, bot.get_vk_id()) or domain == bot.get_vk_domain():
             return " ".join(mentioned.split()[1:])
         else:
             return text

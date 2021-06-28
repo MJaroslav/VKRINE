@@ -1,0 +1,4 @@
+# Allow only rine_ pre build plugins
+#############################################
+*.py
+!rine_*.py

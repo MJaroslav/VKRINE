@@ -17,33 +17,33 @@ DEFAULT = {
 class Settings(BotModule):
     def __init__(self, bot):
         super().__init__(MODULE_NAME, bot)
-        self.FILEPATH = bot.RUNTIME + "/settings.json"
+        self._filepath_ = self._bot_.get_runtime() + "/settings.json"
     
     def load(self):
-        self.__data__ = utils.load_json(self.FILEPATH, DEFAULT)
+        self._data_ = utils.load_json(self._filepath_, DEFAULT)
 
     def reload(self):
         self.load()
 
     def save(self):
-        utils.save_json(self.__data__, self.FILEPATH)
+        utils.save_json(self._data_, self._filepath_)
     
-    def __get_data__(self, chat_id, create_entry=False):
+    def _get_data_(self, chat_id, create_entry=False):
         chat_id = str(chat_id)
-        if chat_id in self.__data__:
-            return self.__data__[chat_id]
+        if chat_id in self._data_:
+            return self._data_[chat_id]
         elif create_entry and chat_id != "0":
-            self.__data__[chat_id] = {}
-            return self.__data__[chat_id]
+            self._data_[chat_id] = {}
+            return self._data_[chat_id]
         else:
-            return self.__data__["@main"]
+            return self._data_["@main"]
 
     def get_option(self, key, default=None, chat_id=0):
         main_value = default
         if chat_id != 0:
             main_value = self.get_option(key, default=default)
         keys = key.split(".")
-        data = self.__get_data__(chat_id)
+        data = self._get_data_(chat_id)
         while len(keys) > 1:
             if keys[0] in data:
                 data = data[keys[0]]
@@ -54,7 +54,7 @@ class Settings(BotModule):
 
     def set_option(self, key, value, chat_id=0):
         keys = key.split(".")
-        data = self.__get_data__(chat_id, True)
+        data = self._get_data_(chat_id, True)
         while len(keys) > 1:
             if keys[0] not in data:
                 data[keys[0]] = {}

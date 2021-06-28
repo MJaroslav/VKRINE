@@ -1,7 +1,8 @@
 import os
 import json
 import vkrine.utils as utils
-from vk_api.longpoll import Event
+from vk_api.longpoll import Event as UserEvent
+from vk_api.bot_longpoll import DotDict as GroupEvent
 import random
 from .modules import BotModule
 
@@ -16,32 +17,35 @@ DEFAULT = {
 class Localization(BotModule):
     def __init__(self, bot):
         super().__init__(MODULE_NAME, bot)
-        self.FILEPATH = bot.RUNTIME + "/localization.json"
-        self.__locales__ = {}
-        self.__settings__ = {}
+        self._filepath_ = self._bot_.get_runtime() + "/localization.json"
+        self._locales_ = {}
+        self._settings_ = {}
 
     def reload(self):
         self.load()
 
     def load(self):
-        self.__settings__ = utils.load_json(self.FILEPATH, DEFAULT)
+        self._settings_ = utils.load_json(self._filepath_, DEFAULT)
         dirpath = "locales"
         for filename in os.listdir(dirpath):
             filepath = "{}/{}".format(dirpath, filename)
             filenamesplit = os.path.splitext(filename)
             if os.path.isfile(filepath) and filenamesplit[1] == ".json":
                 data = utils.load_json(filepath)
-                if data: self.__locales__[filenamesplit[0]] = data
+                if data: self._locales_[filenamesplit[0]] = data
 
     def save(self):
-        utils.save_json(self.__settings__, self.FILEPATH)
+        utils.save_json(self._settings_, self._filepath_)
 
     def main_locale(self):
-        return self.__locales__[self.__settings__[MAIN_LOCALE_KEY]]
+        return self._locales_[self._settings_[MAIN_LOCALE_KEY]]
 
     def get_locale_key(self, target):
         target_type = type(target)
-        if target_type is Event:
+        if target_type is UserEvent:
+            user_id = str(target.user_id)
+            peer_id = str(target.peer_id)
+        elif target_type is GroupEvent:
             user_id = str(target.user_id)
             peer_id = str(target.peer_id)
         elif target_type is tuple or target_type is list:
@@ -60,18 +64,18 @@ class Localization(BotModule):
         if user_id or peer_id:
             user_id = str(user_id)
             peer_id = str(peer_id)
-            if user_id in self.__settings__:
-                return self.__settings__[user_id]
-            if peer_id in self.__settings__:
-                return self.__settings__[peer_id]
+            if user_id in self._settings_:
+                return self._settings_[user_id]
+            if peer_id in self._settings_:
+                return self._settings_[peer_id]
         elif target_type is str:
-            if target in self.__settings__:
-                return self.__settings__[target]
-        return self.__settings__[MAIN_LOCALE_KEY]
+            if target in self._settings_:
+                return self._settings_[target]
+        return self._settings_[MAIN_LOCALE_KEY]
 
     def translate(self, target, key, *args, **kwargs):
         locale_key = self.get_locale_key(target)
-        locale = self.__locales__[locale_key]
+        locale = self._locales_[locale_key]
         main_locale = self.main_locale()
         if key in locale["keys"]:
             return locale["keys"][key].format(*args, **kwargs)
@@ -86,7 +90,7 @@ class Localization(BotModule):
     def translate_list(self, target, key, *args, **kwargs):
         result = [key]
         locale_key = self.get_locale_key(target)
-        locale = self.__locales__[locale_key]
+        locale = self._locales_[locale_key]
         main_locale = self.main_locale()
         if key in locale["keys"]:
             result += locale["keys"][key]
@@ -98,18 +102,18 @@ class Localization(BotModule):
 
     def reset_locale(self, target):
         if target != "@main":
-            del self.__settings__[target]
+            del self._settings_[target]
         self.save()
 
     def set_locale(self, target, locale):
-        if locale in self.__settings__:
-            self.__settings__[target][0] = locale
+        if locale in self._settings_:
+            self._settings_[target][0] = locale
         else:
-            self.__settings__[target] = locale
+            self._settings_[target] = locale
         self.save()
 
     def has_locale(self, locale):
-        return locale in self.__locales__
+        return locale in self._locales_
 
     def locales(self):
-        return self.__locales__.keys()
+        return self._locales_.keys()

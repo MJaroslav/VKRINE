@@ -1,6 +1,6 @@
-BOT_TYPE_USER = "user"
-BOT_TYPE_GROUP = "group"
-BOT_TYPE_ANY = "any"
+ARCHITECTURE_USER = "user"
+ARCHITECTURE_GROUP = "group"
+ARCHITECTURE_ANY = "any"
 
 MODULE_NAME_CHATLOGGER = "chatlogger"
 MODULE_NAME_COMMANDHANDLER = "commandhandler"

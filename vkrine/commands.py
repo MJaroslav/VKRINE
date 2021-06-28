@@ -10,7 +10,7 @@ import random
 import vkrine.consts as consts
 
 class Command(object):
-    def __init__(self, module, name, bot_type=consts.BOT_TYPE_ANY):
+    def __init__(self, module, name, bot_type=consts.ARCHITECTURE_ANY):
         self.MODULE = module
         self.NAME = name
         self.TYPE = bot_type
@@ -37,20 +37,20 @@ class Command(object):
         return "command.{}.{}".format(self.NAME, arg)
     
     def done(self, bot, event):
-        MessageBuilder().translate("commands.done").send(bot, event=event)
+        MessageBuilder(bot).translate("commands.done").send(event)
 
 
 def is_arg(bot, event, arg, key, phrase):
     if arg == phrase:
         return True
-    if phrase in bot.L10N.translate_list(event, key):
+    if phrase in bot.l10n().translate_list(event, key):
         return True
-    if phrase in bot.L10N.translate_list(None, key):
+    if phrase in bot.l10n().translate_list(None, key):
         return True
 
 
 def have_permission(bot, event, permission):
-    if not bot.PERMISSIONS.have_permission(event, permission):
+    if not bot.permissions().have_permission(event, permission):
         raise exceptions.CommandException("commands.generic.permission")
 
 
@@ -120,7 +120,7 @@ def get_user(bot, arg):
         uid = mentioned.split()[0].lower()
     else:
         uid = arg
-    users = bot.VK.users.get(user_ids=uid)
+    users = bot.vk().users.get(user_ids=uid)
     l = len(users)
     if l > 0:
         if l > 1:
@@ -136,7 +136,7 @@ class CommandEcho(Command):
         super().__init__(module, "echo")
 
     def run(self, event, bot, line, args):
-        MessageBuilder(line).send(bot, event=event)
+        MessageBuilder(bot, line).send(event)
 
 
 class CommandReload(Command):
@@ -170,16 +170,16 @@ class CommandLocale(Command):
             if l == 2:
                 locale = args[1]
                 if locale == "default":
-                    bot.L10N.set_locale("@main", "en_US")
+                    bot.l10n().set_locale("@main", "en_US")
                     self.done(bot, event)
-                elif bot.L10N.has_locale(locale):
-                    bot.L10N.set_locale("@main", locale)
+                elif bot.l10n().has_locale(locale):
+                    bot.l10n().set_locale("@main", locale)
                     self.done(bot, event)
                 else:
-                    MessageBuilder().translate("commands.text.locale.not_found", locale).send(bot, event=event)
+                    MessageBuilder(bot).translate("commands.text.locale.not_found", locale).send(event)
             elif l == 1:
-                locale = bot.L10N.get_locale_key("@main")
-                MessageBuilder().translate("commands.text.locale.current", locale).send(bot, event=event)
+                locale = bot.l10n().get_locale_key("@main")
+                MessageBuilder(bot).translate("commands.text.locale.current", locale).send(event)
             else:
                 raise exceptions.WrongUsageException(None)
         elif is_arg(bot, event, "chat", self.get_arg_key("chat"), args[0]):
@@ -187,16 +187,16 @@ class CommandLocale(Command):
             if l == 2:
                 locale = args[1]
                 if locale == "default":
-                    bot.L10N.reset_locale(str(event.peer_id))
+                    bot.l10n().reset_locale(str(event.peer_id))
                     self.done(bot, event)
-                elif bot.L10N.has_locale(locale):
-                    bot.L10N.set_locale(str(event.peer_id), locale)
+                elif bot.l10n().has_locale(locale):
+                    bot.l10n().set_locale(str(event.peer_id), locale)
                     self.done(bot, event)
                 else:
-                    MessageBuilder().translate("commands.text.locale.not_found", locale).send(bot, event=event)
+                    MessageBuilder(bot).translate("commands.text.locale.not_found", locale).send(event)
             elif l == 1:
-                locale = bot.L10N.get_locale_key(event.peer_id)
-                MessageBuilder().translate("commands.text.locale.current", locale).send(bot, event=event)
+                locale = bot.l10n().get_locale_key(event.peer_id)
+                MessageBuilder(bot).translate("commands.text.locale.current", locale).send(event)
             else:
                 raise exceptions.WrongUsageException(None)
         elif is_arg(bot, event, "personal", self.get_arg_key("personal"), args[0]):
@@ -204,21 +204,21 @@ class CommandLocale(Command):
             if l == 2:
                 locale = args[1]
                 if locale == "default":
-                    bot.L10N.reset_locale(str(event.user_id))
+                    bot.l10n().reset_locale(str(event.user_id))
                     self.done(bot, event)
-                elif bot.L10N.has_locale(locale):
-                    bot.L10N.set_locale(str(event.user_id), locale)
+                elif bot.l10n().has_locale(locale):
+                    bot.l10n().set_locale(str(event.user_id), locale)
                     self.done(bot, event)
                 else:
-                    MessageBuilder().translate("commands.text.locale.not_found", locale).send(bot, event=event)
+                    MessageBuilder(bot).translate("commands.text.locale.not_found", locale).send(event)
             elif l == 1:
-                locale = bot.L10N.get_locale_key(event.user_id)
-                MessageBuilder().translate("commands.text.locale.current", locale).send(bot, event=event)
+                locale = bot.l10n().get_locale_key(event.user_id)
+                MessageBuilder(bot).translate("commands.text.locale.current", locale).send(event)
             else:
                 raise exceptions.WrongUsageException(None)
         elif is_arg(bot, event, "list", self.get_arg_key("list"), args[0]):
             if l == 1:
-                MessageBuilder().translate("commands.text.locale.list", ", ".join(bot.L10N.locales())).send(bot, event=event)
+                MessageBuilder(bot).translate("commands.text.locale.list", ", ".join(bot.l10n().locales())).send(event)
             else:
                 raise exceptions.WrongUsageException(None)
         else:
@@ -246,35 +246,35 @@ class CommandHelp(Command):
             except exceptions.NumberInvalidException:
                 command_name = args[0]
         if command_name:
-            command = bot.COMMANDHANDLERMODULE.COMMANDHANDLER.get_command(event, command_name)
-            aliases = bot.L10N.translate_list(event, command.get_aliases_key())
+            command = bot.get_command(event, command_name)
+            aliases = bot.l10n().translate_list(event, command.get_aliases_key())
             aliases = "', '".join(aliases)
             if not aliases:
-                aliases = bot.L10N.translate(event, "commands.none")
+                aliases = bot.l10n().translate(event, "commands.none")
             else:
                 aliases = "'{}'".format(aliases)
-            MessageBuilder().translate(command.get_help_extended()).newline(True).translate("help.aliases", aliases).send(bot, event=event)
+            MessageBuilder(bot).translate(command.get_help_extended()).newline(True).translate("help.aliases", aliases).send(event)
         else:
             page_data = []
             for command in self.__pages__[page]:
-                text = "{} - {}".format(command.NAME, bot.L10N.translate(event, command.get_help()))
+                text = "{} - {}".format(command.NAME, bot.l10n().translate(event, command.get_help()))
                 page_data.append(text)
             page = utils.emoji_numbers(page)
-            MessageBuilder().translate("help.page", page, "\n".join(page_data)).send(bot, event=event)
+            MessageBuilder(bot).translate("help.page", page, "\n".join(page_data)).send(event)
 
 class CommandCaptcha(Command):
     def __init__(self, module):
-        super().__init__(module, "captcha", consts.BOT_TYPE_USER)
+        super().__init__(module, "captcha", consts.ARCHITECTURE_USER)
     
     def run(self, event, bot, line, args):
         if len(args) == 1:
             answer = args[0]
-            if bot.__current_captcha__:
-                bot.__current_captcha__.try_again(answer)
+            if bot._current_captcha_:
+                bot._current_captcha_.try_again(answer)
                 self.done(bot, event)
-                bot.__current_captcha__ = None
+                bot._current_captcha_ = None
             else:
-                MessageBuilder().translate("text.captcha.none").send(bot, event=event)
+                MessageBuilder(bot).translate("text.captcha.none").send(event)
         else:
             raise exceptions.WrongUsageException(None)
 
@@ -294,7 +294,7 @@ class CommandRoll(Command):
             else:
                 raise exceptions.WrongUsageException(None)
             roll = random.randint(min_roll, max_roll)
-            MessageBuilder().translate("commands.text.roll", roll).send(bot, event=event)
+            MessageBuilder(bot).translate("commands.text.roll", roll).send(event)
         else:
             roll = random.randint(0, 100)
-            MessageBuilder().translate("commands.text.roll", roll).send(bot, event=event)
+            MessageBuilder(bot).translate("commands.text.roll", roll).send(event)

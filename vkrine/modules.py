@@ -7,29 +7,37 @@ import inspect
 from operator import attrgetter
 
 class BotModule(object):
-    def __init__(self, name, bot, priority=0, switchable=True):
-        self.BOT = bot
-        self.NAME = name
-        self.PRIORITY = priority
-        self.enabled = False
-        self.SWITCHABLE = switchable
+    def __init__(self, name, bot, priority=0, switchable=True, architecture=consts.ARCHITECTURE_ANY, reloadable=True):
+        self._bot_ = bot
+        self._module_name_ = name
+        self._priority_ = priority
+        self._enable_ = False
+        self._switchable_ = switchable
+        self._architecture_ = architecture
+        self._reloadable_ = reloadable
+
+    def is_switchable(self):
+        return self._switchable_
+
+    def is_reloadable(self):
+        return self._reloadable_
 
     def enable(self):
-        if not self.SWITCHABLE or self.is_enabled():
+        if not self.is_switchable() or self.is_enabled():
             return
-        self.enabled = True
-        self.BOT.SETTINGS.set_option("modules.{}.enable".format(self.NAME), True)
+        self._enable_ = True
+        self._bot_.settings().set_option("modules.{}.enable".format(self._module_name_), True)
         self.load()
     
     def disable(self):
-        if not self.SWITCHABLE or not self.is_enabled():
+        if not self.is_switchable() or not self.is_enabled():
             return
-        self.enabled = False
-        self.BOT.SETTINGS.set_option("modules.{}.enable".format(self.NAME), False)
+        self._enable_ = False
+        self._bot_.settings().set_option("modules.{}.enable".format(self._module_name_), False)
         self.unload()
 
     def is_enabled(self):
-        return not self.SWITCHABLE or self.BOT.SETTINGS.get_option("modules.{}.enable".format(self.NAME), True)
+        return not self._switchable_ or self._bot_.settings().get_option("modules.{}.enable".format(self._module_name_), True)
 
     def listeners(self):
         return []
@@ -57,63 +65,62 @@ class ChatLoggerModule(BotModule):
 class PluginLoaderModule(BotModule):
     def __init__(self, bot):
         super().__init__(consts.MODULE_NAME_PLUGINLOADER, bot, priority=-1)
-        self.PLUGINDIRPATH = "plugins"
-        self.__plugins__ = []
+        self._pluginspath_ = "plugins"
+        self._plugins_ = []
 
-    def __find_plugins__(self):
-        for filename in os.listdir(self.PLUGINDIRPATH):
-            filepath = "{}/{}".format(self.PLUGINDIRPATH, filename)
+    def _find_plugins_(self):
+        for filename in os.listdir(self._pluginspath_):
+            filepath = "{}/{}".format(self._pluginspath_, filename)
             filenamesplit = os.path.splitext(filename)
             if os.path.isfile(filepath) and filenamesplit[1] == ".py":
-                plugin = importlib.import_module("{}.{}".format(self.PLUGINDIRPATH, filenamesplit[0]))
+                plugin = importlib.import_module("{}.{}".format(self._pluginspath_, filenamesplit[0]))
                 for name, obj in inspect.getmembers(plugin):
                     if inspect.isclass(obj) and BotModule in obj.__bases__:
-                        module = obj(self.BOT)
+                        module = obj(self._bot_)
                         if module.is_enabled():
-                            self.__plugins__.append(module)
-        self.__plugins__.sort(key=attrgetter("PRIORITY", "NAME"))
+                            self._plugins_.append(module)
+        self._plugins_.sort(key=attrgetter("_priority_", "_module_name_"))
 
     def load(self):
-        self.__find_plugins__()
-        for plugin in self.__plugins__:
+        self._find_plugins_()
+        for plugin in self._plugins_:
             if plugin.is_enabled():
                 plugin.load()
 
     def listeners(self):
         result = []
-        for plugin in self.__plugins__:
+        for plugin in self._plugins_:
             if plugin.is_enabled():
                 listeners = plugin.listeners()
-                listeners.sort(key=attrgetter("PRIORITY"))
+                listeners.sort(key=attrgetter("_priority_"))
                 result += listeners
         return result
         
     def commands(self):
         result = []
-        for plugin in self.__plugins__:
+        for plugin in self._plugins_:
             if plugin.is_enabled():
                 result += plugin.commands()
         return result
 
     def unload(self):
-        for plugin in self.__plugins__:
+        for plugin in self._plugins_:
             if plugin.is_enabled():
                 plugin.unload()
 
     def reload(self):
-        self.__plugins__.clear()
-        self.__find_plugins__()
-        for plugin in self.__plugins__:
+        self._plugins_.clear()
+        self._find_plugins_()
+        for plugin in self._plugins_:
             if plugin.is_enabled():
                 plugin.reload()
 
 class CommandHandlerModule(BotModule):
     def __init__(self, bot):
         super().__init__(consts.MODULE_NAME_COMMANDHANDLER, bot, switchable=False)
-        self.COMMANDHANDLER = CommandHandler(self)
     
     def listeners(self):
-        return [self.COMMANDHANDLER]
+        return [CommandHandler(self)]
     
     def commands(self):
         return [
