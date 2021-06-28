@@ -3,7 +3,7 @@ import os
 import urllib.request as request
 import datetime
 import re
-
+import vkrine.consts as consts
 
 class MessageBuilder(object):
     def __init__(self, message=""):
@@ -24,7 +24,7 @@ class MessageBuilder(object):
         return self
     
     def newline(self, double=False):
-        self.__message += "\n\n" if double else "\n"
+        self.__message__ += "\n\n" if double else "\n"
         return self
 
     def text(self, text, *args, **kwargs):
@@ -47,7 +47,13 @@ class MessageBuilder(object):
         attachment = self.__attachments__[:10]
         peer_id = peer_id if peer_id else event.peer_id
         bot.send(peer_id, message, attachment)
-
+    
+def emoji_numbers(number):
+    result = ""
+    for char in str(number):
+        result += consts.EMOJI_NUMBERS[number]
+    return result
+    
 def print_logo():
     print(r"===================================================")
     print(r"=            _____  _____ _   _ ______            =")
@@ -70,7 +76,7 @@ def load_json(filepath, default=None):
     if os.path.exists(filepath) and os.path.isfile(filepath):
         with open(filepath, "r") as file:
             return json.load(file)
-    elif default:
+    elif default is not None:
         with open(filepath, "w") as file:
             json.dump(default, file, indent=4)
         return default
@@ -79,13 +85,13 @@ def save_json(data, filepath):
     with open(filepath, "w") as file:
         json.dump(data, file, indent=4)
 
-def load_token(filepath):
+def load_token(filepath, is_user=False):
     if os.path.exists(filepath) and os.path.isfile(filepath):
         with open(filepath, "r") as file:
-            return file.readline()
+            return file.read().strip() if is_user else file.read().strip().split()
     else:
         with open(filepath, "w") as file:
-            file.write("Введите токен сюда.")
+            file.write("Введите токен сюда (если бот является группой, то на следующей строке введите номер группы ).")
         print('Пожалуйста, введите токен в файл "' +
               os.path.abspath(filepath) + '" и перезапустите бота.')
         quit()
@@ -97,7 +103,10 @@ def find_member(members, user_id):
             return member
 
 def log_message_event(bot, event):
-    user = bot.VK.users.get(user_ids=event.user_id)[0]
+    if event.from_me:
+        user = bot.VK.users.get(user_ids=bot.ID)[0]
+    else:
+        user = bot.VK.users.get(user_ids=event.user_id)[0]
     item = event.peer_id, bot.VK.messages.getConversationsById(peer_ids=event.peer_id)['items']
     if item[0] > 2000000000:
         peer = "{} ({}) | ".format(item[0], item[1][0]['chat_settings']['title'])
@@ -142,10 +151,10 @@ def check_connection(url):
 def try_remove_prefix(text, bot, peer_id):
     mentioned = re.sub(r'^((\[(\S+?)\|\S+?\])|(@(\S+)( \(\S+?\))?))',
                        r'\3\5', text, re.IGNORECASE + re.DOTALL)
-    prefix = bot.SETTINGS.get_option(peer_id, "chat.prefix", "/")
+    prefix = bot.SETTINGS.get_option("chat.prefix", "/", peer_id)
     if len(mentioned) != len(text):
         domain = mentioned.split()[0].lower()
-        if domain == "id{}".format(bot.get_id()) or domain == bot.get_domain():
+        if domain == "id{}".format(bot.ID) or domain == bot.DOMAIN:
             return " ".join(mentioned.split()[1:])
         else:
             return text

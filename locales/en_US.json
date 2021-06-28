@@ -15,10 +15,10 @@
         "commands.generic.float.too_big": "The number you have entered ({:.2f}) is too big, it must be at most {:.2f}",
         "commands.generic.usage": "Usage: {}",
         "commands.echo.aliases": [
-            "repeat"
+            "repeat",
+            "say"
         ],
         "commands.reload.aliases": [
-            "update",
             "upd"
         ],
         "commands.stop.aliases": [
@@ -28,14 +28,24 @@
             "h",
             "?"
         ],
-        "commands.done": "Done",
+        "commands.roll.aliases": [
+            "r"
+        ],
+        "commands.bash.aliases": [
+            "joke"
+        ],
+        "commands.locale.aliases": [
+            "language",
+            "lang"
+        ],
+        "commands.done": "✅ Done",
         "commands.none": "None",
         "commands.text.locale.current": "Current locale '{}'",
         "commands.text.locale.not_found": "That locale can not be found '{}'",
         "commands.text.locale.list": "Locales: {}",
         "commands.text.roll": "You rolled: {}!",
         "help.aliases": "Command aliases: {}",
-        "help.page": "Commands page {}\nUse 'help <command|page>' for command details or another page\n\n{}",
+        "help.page": "ℹ Commands page {}\nUse 'help <command|page>' for command details or another page\n\n{}",
         "help.echo": "Bot answer with entered arguments",
         "help.echo.extended": "Bot answer with entered arguments",
         "help.reload": "Update bot files",
@@ -46,6 +56,12 @@
         "help.help.extended": "Use 'help <command|page>' for another page or command details",
         "help.stop": "Stop bot",
         "help.stop.extended": "Stop bot program",
+        "help.captcha": "Answer for bot captcha",
+        "help.captcha.extended": "Utility command for answer to captcha, use with answer. If can't work, write to bot owner/developer",
+        "help.roll": "Take random number in range",
+        "help.roll.extended": "Use 'roll' for roll in 0-100, 'roll <max>' for roll in 0-max and 'roll <min> <max>' for roll in min-max range",
+        "help.bash": "Take a bad joke",
+        "help.bash.extended": "Post random quote from bash.org",
         "text.captcha.none": "Captcha no needed",
         "text.captcha": "Enter captcha by 'captcha <answer> command:\n{}'"
     }

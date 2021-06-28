@@ -48,6 +48,11 @@ class Permissions(BotModule):
         members = self.BOT.VK.messages.getConversationMembers(
             peer_id=event.peer_id)["items"]
         member = utils.find_member(members, event.user_id)
+        chat_id = str(event.peer_id)
+        user_id = str(event.user_id)
+        if user_id in self.__permissions__:
+            if utils.in_level_list(self.__permissions__[user_id], permission):
+                return True
         if event.peer_id < 2000000000:
             if utils.in_level_list(self.__permissions__[PRIVATE_PERMISSION_KEY], permission):
                 return True
@@ -60,12 +65,6 @@ class Permissions(BotModule):
                     return True
             if utils.in_level_list(self.__permissions__[MEMBER_PERMISSION_KEY], permission):
                 return True
-        chat_id = str(event.peer_id)
-        user_id = str(event.user_id)
-        if chat_id in self.__permissions__:
-            if user_id in self.__permissions__:
-                if utils.in_level_list(self.__permissions__[chat_id][user_id], permission):
+            if chat_id in self.__permissions__:
+                if utils.in_level_list(self.__permissions__[chat_id], permission):
                     return True
-        if user_id in self.__permissions__:
-            if utils.in_level_list(self.__permissions__[user_id], permission):
-                return True
