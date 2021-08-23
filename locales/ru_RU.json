@@ -14,13 +14,13 @@
         "commands.generic.float.too_small": "Введённое число ({:.2f}) слишком мало, оно должно быть больше {:.2f}",
         "commands.generic.float.too_big": "Введённое число ({:.2f}) слишком велико, оно должно быть меньше {:.2f}",
         "commands.generic.usage": "Использование: {}",
-        "commands.done": "Готово",
+        "commands.done": "✅ Готово",
         "commands.none": "Нет",
         "commands.text.locale.current": "Текущий язык '{}'",
         "commands.text.locale.not_found": "Не удаётся найти язык '{}'",
         "commands.text.locale.list": "Языки: {}",
         "help.aliases": "Синонимы команды: {}",
-        "help.page": "Страница команд {}\nИспользуйте 'help <команда|страница>' для деталей команды или другой страницы\n\n{}",
+        "help.page": "ℹ Страница команд {}\nИспользуйте 'help <команда|страница>' для деталей команды или другой страницы\n\n{}",
         "help.echo": "Бот ответит введенными аргументами",
         "help.echo.extended": "Бот ответит введенными аргументами",
         "help.reload": "Обновить файлы бота",
@@ -30,6 +30,12 @@
         "help.help": "Показать это сообщение",
         "help.help.extended": "Используйте 'help <command|page>' для деталей команды или другой страницы",
         "help.stop": "Stop bot",
-        "help.stop.extended": "Stop bot program"
+        "help.stop.extended": "Stop bot program",
+        "help.captcha": "Ответить на капчу бота",
+        "help.captcha.extended": "Утилитарная команда, используйте вместе с ответом на капчу. Если не работает, свяжитесь с владельцем/разработчиком бота",
+        "help.roll": "Получить случайное число в диапазоне",
+        "help.roll.extended": "Используйте 'roll' для диапазона 0-100, 'roll <max>' для 0-max и 'roll <min> <max>' для min-max",
+        "help.bash": "Получить тухлую шутку",
+        "help.bash.extended": "Постит случайную цитату с bash.org"
     }
 }

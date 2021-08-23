@@ -7,11 +7,13 @@ import re
 import traceback
 from .utils import MessageBuilder
 import random
-
+import vkrine.consts as consts
 
 class Command(object):
-    def __init__(self, name):
+    def __init__(self, module, name, bot_type=consts.BOT_TYPE_ANY):
+        self.MODULE = module
         self.NAME = name
+        self.TYPE = bot_type
 
     def get_aliases_key(self):
         return "commands.{}.aliases".format(self.NAME)
@@ -130,16 +132,16 @@ def get_user(bot, arg):
 
 
 class CommandEcho(Command):
-    def __init__(self):
-        super().__init__("echo")
+    def __init__(self, module):
+        super().__init__(module, "echo")
 
     def run(self, event, bot, line, args):
         MessageBuilder(line).send(bot, event=event)
 
 
 class CommandReload(Command):
-    def __init__(self):
-        super().__init__("reload")
+    def __init__(self, module):
+        super().__init__(module, "reload")
 
     def run(self, event, bot, line, args):
         bot.reload()
@@ -147,8 +149,8 @@ class CommandReload(Command):
 
 
 class CommandStop(Command):
-    def __init__(self):
-        super().__init__("stop")
+    def __init__(self, module):
+        super().__init__(module, "stop")
 
     def run(self, event, bot, line, args):
         bot.stop()
@@ -156,8 +158,8 @@ class CommandStop(Command):
 
 
 class CommandLocale(Command):
-    def __init__(self):
-        super().__init__("locale")
+    def __init__(self, module):
+        super().__init__(module, "locale")
 
     def run(self, event, bot, line, args):
         l = len(args)
@@ -171,7 +173,7 @@ class CommandLocale(Command):
                     bot.L10N.set_locale("@main", "en_US")
                     self.done(bot, event)
                 elif bot.L10N.has_locale(locale):
-                    bot.l10n().set_locale("@main", locale)
+                    bot.L10N.set_locale("@main", locale)
                     self.done(bot, event)
                 else:
                     MessageBuilder().translate("commands.text.locale.not_found", locale).send(bot, event=event)
@@ -187,7 +189,7 @@ class CommandLocale(Command):
                 if locale == "default":
                     bot.L10N.reset_locale(str(event.peer_id))
                     self.done(bot, event)
-                elif bot.l10n().has_locale(locale):
+                elif bot.L10N.has_locale(locale):
                     bot.L10N.set_locale(str(event.peer_id), locale)
                     self.done(bot, event)
                 else:
@@ -224,8 +226,8 @@ class CommandLocale(Command):
 
 
 class CommandHelp(Command):
-    def __init__(self):
-        super().__init__("help")
+    def __init__(self, module):
+        super().__init__(module, "help")
         self.__pages__ = None
 
     def __init_pages_lazy__(self, bot):
@@ -240,14 +242,12 @@ class CommandHelp(Command):
         command_name = None
         if len(args) > 0:
             try:
-                page = parse_int_bounded(
-                    bot, args[0], 0, len(self.__pages__) - 1)
+                page = parse_int_bounded(args[0], 0, len(self.__pages__) - 1)
             except exceptions.NumberInvalidException:
                 command_name = args[0]
         if command_name:
-            command = bot.COMMANDHANDLER.get_command(event, command_name)
+            command = bot.COMMANDHANDLERMODULE.COMMANDHANDLER.get_command(event, command_name)
             aliases = bot.L10N.translate_list(event, command.get_aliases_key())
-            aliases += bot.L10N.translate_list(None, command.get_aliases_key())
             aliases = "', '".join(aliases)
             if not aliases:
                 aliases = bot.L10N.translate(event, "commands.none")
@@ -259,11 +259,12 @@ class CommandHelp(Command):
             for command in self.__pages__[page]:
                 text = "{} - {}".format(command.NAME, bot.L10N.translate(event, command.get_help()))
                 page_data.append(text)
+            page = utils.emoji_numbers(page)
             MessageBuilder().translate("help.page", page, "\n".join(page_data)).send(bot, event=event)
 
 class CommandCaptcha(Command):
-    def __init__(self):
-        super().__init__("captcha")
+    def __init__(self, module):
+        super().__init__(module, "captcha", consts.BOT_TYPE_USER)
     
     def run(self, event, bot, line, args):
         if len(args) == 1:
@@ -278,8 +279,8 @@ class CommandCaptcha(Command):
             raise exceptions.WrongUsageException(None)
 
 class CommandRoll(Command):
-    def __init__(self):
-        super().__init__("roll")
+    def __init__(self, module):
+        super().__init__(module, "roll")
     
     def run(self, event, bot, line, args):
         if args:

@@ -28,8 +28,10 @@ class Localization(BotModule):
         dirpath = "locales"
         for filename in os.listdir(dirpath):
             filepath = "{}/{}".format(dirpath, filename)
-            data = utils.load_json(filepath)
-            if data: self.__locales__[os.path.splitext(filename)[0]] = data
+            filenamesplit = os.path.splitext(filename)
+            if os.path.isfile(filepath) and filenamesplit[1] == ".json":
+                data = utils.load_json(filepath)
+                if data: self.__locales__[filenamesplit[0]] = data
 
     def save(self):
         utils.save_json(self.__settings__, self.FILEPATH)
@@ -64,7 +66,7 @@ class Localization(BotModule):
                 return self.__settings__[peer_id]
         elif target_type is str:
             if target in self.__settings__:
-                return target
+                return self.__settings__[target]
         return self.__settings__[MAIN_LOCALE_KEY]
 
     def translate(self, target, key, *args, **kwargs):

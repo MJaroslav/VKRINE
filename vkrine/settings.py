@@ -7,7 +7,9 @@ DEFAULT = {
     "@main": {
         "chat": {
             "prefix": "/",
-            "logging": "commands"
+            "logging": [
+                "commands"
+            ]
         }
     }
 }
@@ -30,13 +32,16 @@ class Settings(BotModule):
         chat_id = str(chat_id)
         if chat_id in self.__data__:
             return self.__data__[chat_id]
-        elif create_entry:
+        elif create_entry and chat_id != "0":
             self.__data__[chat_id] = {}
             return self.__data__[chat_id]
         else:
             return self.__data__["@main"]
 
-    def get_option(self, chat_id, key, default=None):
+    def get_option(self, key, default=None, chat_id=0):
+        main_value = default
+        if chat_id != 0:
+            main_value = self.get_option(key, default=default)
         keys = key.split(".")
         data = self.__get_data__(chat_id)
         while len(keys) > 1:
@@ -44,10 +49,10 @@ class Settings(BotModule):
                 data = data[keys[0]]
                 del keys[0]
             else:
-                return default
+                return main_value
         return data[keys[0]] if keys[0] in data else default
 
-    def set_option(self, chat_id, key, value):
+    def set_option(self, key, value, chat_id=0):
         keys = key.split(".")
         data = self.__get_data__(chat_id, True)
         while len(keys) > 1:

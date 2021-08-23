@@ -2,6 +2,7 @@
 import datetime
 import vkrine.utils as utils
 from vk_api.longpoll import VkEventType
+from vk_api.bot_longpoll import VkBotEventType
 from .utils import MessageBuilder
 import vkrine.exceptions as exceptions
 import shlex
@@ -9,22 +10,23 @@ import traceback
 
 
 class EventListener(object):
-    def __init__(self, priority=0):
+    def __init__(self, module, priority=0):
         self.PRIORITY = priority
+        self.MODULE = module
 
     def on_event(self, event, bot):
         pass
 
 class MessageListener(EventListener):
-    def __init__(self, priority=0, call_itself=False):
-        super().__init__(priority)
+    def __init__(self, module, priority=0, call_itself=False):
+        super().__init__(module, priority)
         self.__call_itself__ = call_itself
 
     def __can_call__(self, event, bot):
-        return event.user_id != bot.ID or self.__call_itself__
+        return not event.from_me or self.__call_itself__
 
     def on_event(self, event, bot):
-        if event.type == VkEventType.MESSAGE_NEW and self.__can_call__(event, bot):
+        if (event.type == VkEventType.MESSAGE_NEW or event.type == VkBotEventType.MESSAGE_NEW) and self.__can_call__(event, bot):
             self._on_message_(event, bot)
 
     def _on_message_(self, event, bot):
@@ -33,15 +35,15 @@ class MessageListener(EventListener):
 
 class ChatLogger(MessageListener):
     def _on_message_(self, event, bot):
-        if "messages" == bot.SETTINGS.get_option(event.peer_id, "chat.logging"):
+        if "messages" in bot.SETTINGS.get_option("chat.logging", chat_id=event.peer_id):
             utils.log_message_event(bot, event)
 
 
 
 class CommandHandler(MessageListener):
-    def __init__(self, bot, priority=0):
-        super().__init__(priority)
-        self.BOT = bot
+    def __init__(self, module, priority=0):
+        super().__init__(module, priority)
+        self.BOT = self.MODULE.BOT
 
     def _on_message_(self, event, bot):
         text = utils.decode_text(event.text)
@@ -52,7 +54,7 @@ class CommandHandler(MessageListener):
                 command = self.get_command(event, command_raw[0])
                 if bot.PERMISSIONS.have_permission(event, command.get_permission()):
                     line = " ".join(command_raw[1:])
-                    if "commands" == bot.SETTINGS.get_option(event.peer_id, "chat.logging"):
+                    if "commands" in bot.SETTINGS.get_option("chat.logging", event.peer_id):
                         utils.log_message_event(bot, event)
                     command.run(event, bot, utils.decode_quot(
                         line), shlex.split(line))
