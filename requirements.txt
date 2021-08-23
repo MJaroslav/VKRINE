@@ -6,11 +6,6 @@ idna==2.10
 pkg-resources==0.0.0
 requests==2.25.1
 six==1.15.0
-<<<<<<< HEAD
+urllib3==1.26.5
 soupsieve==2.1
-urllib3==1.26.2
 vk-api==11.9.4
-=======
-urllib3==1.26.3
-vk-api==11.9.1
->>>>>>> 1e6a1a98a33012b467ee3a4369e8167a7c428d5e
