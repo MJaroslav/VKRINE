@@ -1,48 +1,73 @@
-import sys
 import datetime
+import vkrine
 
-__levels__ = ["debug", "chat", "info", "warn", "error"]
+ALL = "ALL"
+FINEST = "FINEST"
+FINER = "FINER"
+FINE = "FINE"
+CHAT = "CHAT"
+CONFIG = "CONFIG"
+INFO = "INFO"
+WARNING = "WARNING"
+SEVERE = "SEVERE"
+OFF = "OFF"
 
-def get_log_level():
-    level = "info"
-    if "--logger-level" in sys.argv:
-        i = sys.argv.index("--logger-level")
-    elif "-l" in sys.argv:
-        i = sys.argv.index("-l")
-    else:
-        i = -1
-    if i > -1:
-        i += 1
-        raw = sys.argv[i]
-        if raw in __levels__:
-            level = raw
-    return level
+LEVELS = [ALL, FINEST, FINER, FINE, CHAT, CONFIG, INFO, WARNING, SEVERE, OFF]
 
-def timestamp():
+
+def log(level, text, *args, **kwargs):
+    if __can_log__(level):
+        __print__(__make_prefix__(level) + text.format(*args, **kwargs))
+
+
+def severe(text, *args, **kwargs):
+    log(SEVERE, text, *args, **kwargs)
+
+
+def warning(text, *args, **kwargs):
+    log(WARNING, text, *args, **kwargs)
+
+
+def info(text, *args, **kwargs):
+    log(INFO, text, *args, **kwargs)
+
+
+def config(text, *args, **kwargs):
+    log(CONFIG, text, *args, **kwargs)
+
+
+def chat(text, *args, **kwargs):
+    log(CHAT, text, *args, **kwargs)
+
+
+def fine(text, *args, **kwargs):
+    log(FINE, text, *args, **kwargs)
+
+
+def finer(text, *args, **kwargs):
+    log(FINER, text, *args, **kwargs)
+
+
+def finest(text, *args, **kwargs):
+    log(FINEST, text, *args, **kwargs)
+
+
+def __get_level__():
+    return vkrine.args.logger_level
+
+
+def __timestamp__():
     return datetime.datetime.now().strftime("%d-%m-%Y %H:%M ")
 
-def gen_prefix(level):
-    return timestamp() + "[{}] ".format(level)
 
-def check_log_level(level):
-    return level not in __levels__[:__levels__.index(get_log_level())]
+def __make_prefix__(level):
+    return __timestamp__() + "[{}] ".format(level)
 
-def debug(text: str, *args, **kwargs):
-    if check_log_level("debug"):
-        print(gen_prefix("debug") + text.format(*args, **kwargs))
 
-def chat(text: str, *args, **kwargs):
-    if check_log_level("chat"):
-        print(gen_prefix("chat") + text.format(*args, **kwargs))
+def __can_log__(level):
+    return level not in LEVELS[:LEVELS.index(__get_level__())]
 
-def info(text: str, *args, **kwargs):
-    if check_log_level("info"):
-        print(gen_prefix("info") + text.format(*args, **kwargs))
 
-def warn(text: str, *args, **kwargs):
-    if check_log_level("warn"):
-        print(gen_prefix("warn") + text.format(*args, **kwargs))
-
-def error(text: str, *args, **kwargs):
-    if check_log_level("error"):
-        print(gen_prefix("error") + text.format(*args, **kwargs))
+# TODO: Сделать разные виды вывода, как минимум параллельный консоль-файл
+def __print__(text):
+    print(text)

@@ -1,16 +1,14 @@
-from vkrine.eventlisteners import MessageListener
-import vkrine.utils as utils
-import shlex
-import vkrine.exceptions as exceptions
-import sys
-import re
-import traceback
-from .utils import MessageBuilder
 import random
-import vkrine.consts as consts
+import re
+import sys
+
+import vkrine
+import vkrine.exceptions as exceptions
+import vkrine.utils as utils
+
 
 class Command(object):
-    def __init__(self, module, name, bot_type=consts.ARCHITECTURE_ANY):
+    def __init__(self, module, name, bot_type=vkrine.ARCHITECTURE_ANY):
         self.MODULE = module
         self.NAME = name
         self.TYPE = bot_type
@@ -19,7 +17,7 @@ class Command(object):
         return "commands.{}.aliases".format(self.NAME)
 
     def run(self, event, bot, line, args):
-        pass
+        raise NotImplementedError()
 
     def get_permission(self):
         return "command.{}".format(self.NAME)
@@ -35,22 +33,23 @@ class Command(object):
 
     def get_arg_permission(self, arg):
         return "command.{}.{}".format(self.NAME, arg)
-    
-    def done(self, bot, event):
-        MessageBuilder(bot).translate("commands.done").send(event)
 
 
-def is_arg(bot, event, arg, key, phrase):
+def done(event):
+    vkrine.MessageBuilder().translated_text("commands.done").send(event)
+
+
+def is_arg(event, arg, key, phrase):
     if arg == phrase:
         return True
-    if phrase in bot.l10n().translate_list(event, key):
+    if phrase in vkrine.bot.L10N.translate_list(event, key):
         return True
-    if phrase in bot.l10n().translate_list(None, key):
+    if phrase in vkrine.bot.L10N.translate_list(None, key):
         return True
 
 
-def have_permission(bot, event, permission):
-    if not bot.permissions().have_permission(event, permission):
+def have_permission(event, permission):
+    if not vkrine.bot.PERMISSIONS.have_permission(event, permission):
         raise exceptions.CommandException("commands.generic.permission")
 
 
@@ -61,18 +60,18 @@ def parse_int(arg):
         raise exceptions.NumberInvalidException(None, arg)
 
 
-def parse_int_with_min(arg, min):
-    return parse_int_bounded(arg, min, sys.maxint)
+def parse_int_with_min(arg, i_min):
+    return parse_int_bounded(arg, i_min, sys.maxsize)
 
 
-def parse_int_bounded(arg, min, max):
+def parse_int_bounded(arg, i_min, i_max):
     result = parse_int(arg)
-    if result > max:
+    if result > i_max:
         raise exceptions.NumberInvalidException(
-            "commands.generic.num.to_big", arg, max)
-    elif result < min:
+            "commands.generic.num.to_big", arg, i_max)
+    elif result < i_min:
         raise exceptions.NumberInvalidException(
-            "commands.generic.num.to_small", arg, min)
+            "commands.generic.num.to_small", arg, i_min)
     else:
         return result
 
@@ -86,18 +85,18 @@ def parse_float(arg):
         raise exceptions.NumberInvalidException(None, arg)
 
 
-def parse_float_with_min(arg, min):
-    return parse_float_bounded(arg, min, sys.maxint)
+def parse_float_with_min(arg, i_min):
+    return parse_float_bounded(arg, i_min, sys.maxsize)
 
 
-def parse_float_bounded(arg, min, max):
+def parse_float_bounded(arg, i_min, i_max):
     result = parse_float(arg)
-    if result > max:
+    if result > i_max:
         raise exceptions.NumberInvalidException(
-            "commands.generic.float.to_big", arg, max)
-    elif result < min:
+            "commands.generic.float.to_big", arg, i_max)
+    elif result < i_min:
         raise exceptions.NumberInvalidException(
-            "commands.generic.float.to_small", arg, min)
+            "commands.generic.float.to_small", arg, i_min)
     else:
         return result
 
@@ -113,14 +112,14 @@ def parse_bool(arg):
         return True
 
 
-def get_user(bot, arg):
-    mentioned = re.sub(r'^((\[(\S+?)\|\S+?\])|(@(\S+)( \(\S+?\))?))',
+def parse_mention(arg):
+    mentioned = re.sub(r'^((\[(\S+)\|\S+])|(@(\S+)( \(\S+?\))?))',
                        r'\3\5', arg, re.IGNORECASE + re.DOTALL)
     if len(mentioned) != len(arg):
         uid = mentioned.split()[0].lower()
     else:
         uid = arg
-    users = bot.vk().users.get(user_ids=uid)
+    users = vkrine.bot.get_vk().users.get(user_ids=uid)
     l = len(users)
     if l > 0:
         if l > 1:
@@ -136,7 +135,7 @@ class CommandEcho(Command):
         super().__init__(module, "echo")
 
     def run(self, event, bot, line, args):
-        MessageBuilder(bot, line).send(event)
+        vkrine.MessageBuilder(line).send(event)
 
 
 class CommandReload(Command):
@@ -144,8 +143,8 @@ class CommandReload(Command):
         super().__init__(module, "reload")
 
     def run(self, event, bot, line, args):
-        bot.reload()
-        self.done(bot, event)
+        bot.reload_modules()
+        done(event)
 
 
 class CommandStop(Command):
@@ -154,7 +153,7 @@ class CommandStop(Command):
 
     def run(self, event, bot, line, args):
         bot.stop()
-        self.done(bot, event)
+        done(event)
 
 
 class CommandLocale(Command):
@@ -164,65 +163,66 @@ class CommandLocale(Command):
     def run(self, event, bot, line, args):
         l = len(args)
         if l == 0:
-            raise exceptions.WrongUsageException(None)
-        if is_arg(bot, event, "global", self.get_arg_key("global"), args[0]):
-            have_permission(bot, event, self.get_arg_permission("global"))
+            raise exceptions.CommandWrongUsageException(None)
+        if is_arg(event, "global", self.get_arg_key("global"), args[0]):
+            have_permission(event, self.get_arg_permission("global"))
             if l == 2:
                 locale = args[1]
                 if locale == "default":
                     bot.l10n().set_locale("@main", "en_US")
-                    self.done(bot, event)
-                elif bot.l10n().has_locale(locale):
-                    bot.l10n().set_locale("@main", locale)
-                    self.done(bot, event)
+                    done(event)
+                elif bot.L10N.has_locale(locale):
+                    bot.L10N.set_locale("@main", locale)
+                    done(event)
                 else:
-                    MessageBuilder(bot).translate("commands.text.locale.not_found", locale).send(event)
+                    vkrine.MessageBuilder().translated_text("commands.text.locale.not_found", locale).send(event)
             elif l == 1:
-                locale = bot.l10n().get_locale_key("@main")
-                MessageBuilder(bot).translate("commands.text.locale.current", locale).send(event)
+                locale = bot.L10N.get_locale_key("@main")
+                vkrine.MessageBuilder().translated_text("commands.text.locale.current", locale).send(event)
             else:
-                raise exceptions.WrongUsageException(None)
-        elif is_arg(bot, event, "chat", self.get_arg_key("chat"), args[0]):
-            have_permission(bot, event, self.get_arg_permission("chat"))
+                raise exceptions.CommandWrongUsageException(None)
+        elif is_arg(event, "chat", self.get_arg_key("chat"), args[0]):
+            have_permission(event, self.get_arg_permission("chat"))
             if l == 2:
                 locale = args[1]
                 if locale == "default":
-                    bot.l10n().reset_locale(str(event.peer_id))
-                    self.done(bot, event)
+                    bot.L10N.reset_locale(str(event.peer_id))
+                    done(event)
                 elif bot.l10n().has_locale(locale):
-                    bot.l10n().set_locale(str(event.peer_id), locale)
-                    self.done(bot, event)
+                    bot.L10N.set_locale(str(event.peer_id), locale)
+                    done(event)
                 else:
-                    MessageBuilder(bot).translate("commands.text.locale.not_found", locale).send(event)
+                    vkrine.MessageBuilder().translated_text("commands.text.locale.not_found", locale).send(event)
             elif l == 1:
-                locale = bot.l10n().get_locale_key(event.peer_id)
-                MessageBuilder(bot).translate("commands.text.locale.current", locale).send(event)
+                locale = bot.L10N.get_locale_key(event.peer_id)
+                vkrine.MessageBuilder().translated_text("commands.text.locale.current", locale).send(event)
             else:
-                raise exceptions.WrongUsageException(None)
-        elif is_arg(bot, event, "personal", self.get_arg_key("personal"), args[0]):
-            have_permission(bot, event, self.get_arg_permission("personal"))
+                raise exceptions.CommandWrongUsageException(None)
+        elif is_arg(event, "personal", self.get_arg_key("personal"), args[0]):
+            have_permission(event, self.get_arg_permission("personal"))
             if l == 2:
                 locale = args[1]
                 if locale == "default":
-                    bot.l10n().reset_locale(str(event.user_id))
-                    self.done(bot, event)
-                elif bot.l10n().has_locale(locale):
-                    bot.l10n().set_locale(str(event.user_id), locale)
-                    self.done(bot, event)
+                    bot.L10N.reset_locale(str(event.user_id))
+                    done(event)
+                elif bot.L10N.has_locale(locale):
+                    bot.L10N.set_locale(str(event.user_id), locale)
+                    done(event)
                 else:
-                    MessageBuilder(bot).translate("commands.text.locale.not_found", locale).send(event)
+                    vkrine.MessageBuilder().translated_text("commands.text.locale.not_found", locale).send(event)
             elif l == 1:
                 locale = bot.l10n().get_locale_key(event.user_id)
-                MessageBuilder(bot).translate("commands.text.locale.current", locale).send(event)
+                vkrine.MessageBuilder().translated_text("commands.text.locale.current", locale).send(event)
             else:
-                raise exceptions.WrongUsageException(None)
-        elif is_arg(bot, event, "list", self.get_arg_key("list"), args[0]):
+                raise exceptions.CommandWrongUsageException(None)
+        elif is_arg(event, "list", self.get_arg_key("list"), args[0]):
             if l == 1:
-                MessageBuilder(bot).translate("commands.text.locale.list", ", ".join(bot.l10n().locales())).send(event)
+                vkrine.MessageBuilder().translated_text("commands.text.locale.list",
+                                                        ", ".join(bot.l10n().locales())).send(event)
             else:
-                raise exceptions.WrongUsageException(None)
+                raise exceptions.CommandWrongUsageException(None)
         else:
-            raise exceptions.WrongUsageException(None)
+            raise exceptions.CommandWrongUsageException(None)
 
 
 class CommandHelp(Command):
@@ -232,8 +232,8 @@ class CommandHelp(Command):
 
     def __init_pages_lazy__(self, bot):
         if not self.__pages__:
-            commands = bot.commands()
-            self.__pages__ = [commands[i:i+8]
+            commands = bot.get_commands()
+            self.__pages__ = [commands[i:i + 8]
                               for i in range(0, len(commands), 8)]
 
     def run(self, event, bot, line, args):
@@ -247,41 +247,44 @@ class CommandHelp(Command):
                 command_name = args[0]
         if command_name:
             command = bot.get_command(event, command_name)
-            aliases = bot.l10n().translate_list(event, command.get_aliases_key())
+            aliases = bot.L10N.translate_list(event, command.get_aliases_key())
             aliases = "', '".join(aliases)
             if not aliases:
-                aliases = bot.l10n().translate(event, "commands.none")
+                aliases = bot.L10N.translate(event, "commands.none")
             else:
                 aliases = "'{}'".format(aliases)
-            MessageBuilder(bot).translate(command.get_help_extended()).newline(True).translate("help.aliases", aliases).send(event)
+            vkrine.MessageBuilder().translated_text(command.get_help_extended()).newline(2).translated_text(
+                "help.aliases", aliases).send(event)
         else:
             page_data = []
             for command in self.__pages__[page]:
-                text = "{} - {}".format(command.NAME, bot.l10n().translate(event, command.get_help()))
+                text = "{} - {}".format(command.NAME, bot.L10N.translate(event, command.get_help()))
                 page_data.append(text)
             page = utils.emoji_numbers(page)
-            MessageBuilder(bot).translate("help.page", page, "\n".join(page_data)).send(event)
+            vkrine.MessageBuilder().translated_text("help.page", page, "\n".join(page_data)).send(event)
+
 
 class CommandCaptcha(Command):
     def __init__(self, module):
-        super().__init__(module, "captcha", consts.ARCHITECTURE_USER)
-    
+        super().__init__(module, "captcha", vkrine.ARCHITECTURE_USER)
+
     def run(self, event, bot, line, args):
         if len(args) == 1:
             answer = args[0]
-            if bot._current_captcha_:
-                bot._current_captcha_.try_again(answer)
-                self.done(bot, event)
-                bot._current_captcha_ = None
+            if bot.current_captcha:
+                bot.current_captcha.try_again(answer)
+                done(event)
+                bot.current_captcha = None
             else:
-                MessageBuilder(bot).translate("text.captcha.none").send(event)
+                vkrine.MessageBuilder().translated_text("text.captcha.none").send(event)
         else:
-            raise exceptions.WrongUsageException(None)
+            raise exceptions.CommandWrongUsageException(None)
+
 
 class CommandRoll(Command):
     def __init__(self, module):
         super().__init__(module, "roll")
-    
+
     def run(self, event, bot, line, args):
         if args:
             l = len(args)
@@ -289,12 +292,12 @@ class CommandRoll(Command):
             if l == 1:
                 max_roll = parse_int(args[0])
             elif l == 2:
-                mix_roll = parse_int(args[0])
+                min_roll = parse_int(args[0])
                 max_roll = parse_int(args[1])
             else:
-                raise exceptions.WrongUsageException(None)
+                raise exceptions.CommandWrongUsageException(None)
             roll = random.randint(min_roll, max_roll)
-            MessageBuilder(bot).translate("commands.text.roll", roll).send(event)
+            vkrine.MessageBuilder().translated_text("commands.text.roll", roll).send(event)
         else:
             roll = random.randint(0, 100)
-            MessageBuilder(bot).translate("commands.text.roll", roll).send(event)
+            vkrine.MessageBuilder().translated_text("commands.text.roll", roll).send(event)

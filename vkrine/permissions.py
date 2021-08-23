@@ -1,5 +1,3 @@
-import os
-import json
 import vkrine.utils as utils
 from .modules import BotModule
 
@@ -29,42 +27,42 @@ DEFAULT = {
     ]
 }
 
+
 class Permissions(BotModule):
     def __init__(self, bot):
         super().__init__(MODULE_NAME, bot)
-        self._filepath_ = self._bot_.get_runtime() + "/permissions.json"
-        self._permissions_ = {}
+        self.__FILEPATH__ = self._BOT_.RUNTIME + "/permissions.json"
+        self.__permissions__ = {}
 
     def reload(self):
         self.load()
 
     def load(self):
-        self._permissions_ = utils.load_json(self._filepath_, DEFAULT)
+        self.__permissions__ = utils.load_json_from_file(self.__FILEPATH__, DEFAULT)
 
     def save(self):
-        utils.save_json(self._permissions_, self._filepath_)
+        utils.dump_json_to_file(self.__permissions__, self.__FILEPATH__)
 
     def have_permission(self, event, permission):
-        members = self._bot_.vk().messages.getConversationMembers(
-            peer_id=event.peer_id)["items"]
-        member = utils.find_member(members, event.user_id)
+        members = self._BOT_.get_vk().messages.getConversationMembers(peer_id=event.peer_id)["items"]
+        member = utils.find_chat_member(members, event.user_id)
         chat_id = str(event.peer_id)
         user_id = str(event.user_id)
-        if user_id in self._permissions_:
-            if utils.in_level_list(self._permissions_[user_id], permission):
+        if user_id in self.__permissions__:
+            if utils.element_in_dot_star_list(self.__permissions__[user_id], permission):
                 return True
         if event.peer_id < 2000000000:
-            if utils.in_level_list(self._permissions_[PRIVATE_PERMISSION_KEY], permission):
+            if utils.element_in_dot_star_list(self.__permissions__[PRIVATE_PERMISSION_KEY], permission):
                 return True
         else:
-            if utils.member_is_admin(member, is_owner=True):
-                if utils.in_level_list(self._permissions_[OWNER_PERMISSION_KEY], permission):
+            if utils.chat_member_is_admin(member, must_be_owner=True):
+                if utils.element_in_dot_star_list(self.__permissions__[OWNER_PERMISSION_KEY], permission):
                     return True
-            if utils.member_is_admin(member):
-                if utils.in_level_list(self._permissions_[ADMIN_PERMISSION_KEY], permission):
+            if utils.chat_member_is_admin(member):
+                if utils.element_in_dot_star_list(self.__permissions__[ADMIN_PERMISSION_KEY], permission):
                     return True
-            if utils.in_level_list(self._permissions_[MEMBER_PERMISSION_KEY], permission):
+            if utils.element_in_dot_star_list(self.__permissions__[MEMBER_PERMISSION_KEY], permission):
                 return True
-            if chat_id in self._permissions_:
-                if utils.in_level_list(self._permissions_[chat_id], permission):
+            if chat_id in self.__permissions__:
+                if utils.element_in_dot_star_list(self.__permissions__[chat_id], permission):
                     return True

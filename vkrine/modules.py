@@ -1,47 +1,43 @@
-from .eventlisteners import ChatLogger, CommandHandler
-from .commands import *
-import vkrine.consts as consts
 import importlib
-import os
 import inspect
+import os
 from operator import attrgetter
 
+import vkrine
+from .commands import *
+from .eventlisteners import ChatLogger, CommandHandler
+
+
 class BotModule(object):
-    def __init__(self, name, bot, priority=0, switchable=True, architecture=consts.ARCHITECTURE_ANY, reloadable=True):
-        self._bot_ = bot
-        self._module_name_ = name
-        self._priority_ = priority
+    def __init__(self, name, bot, priority=0, switchable=True, architecture=vkrine.ARCHITECTURE_ANY, reloadable=True):
+        self._BOT_ = bot
+        self.NAME = name
+        self.PRIORITY = priority
+        self.SWITCHABLE = switchable
+        self.ARCHITECTURE = architecture
+        self.RELOADABLE = reloadable
         self._enable_ = False
-        self._switchable_ = switchable
-        self._architecture_ = architecture
-        self._reloadable_ = reloadable
-
-    def is_switchable(self):
-        return self._switchable_
-
-    def is_reloadable(self):
-        return self._reloadable_
 
     def enable(self):
-        if not self.is_switchable() or self.is_enabled():
+        if not self.SWITCHABLE or self.is_enabled():
             return
         self._enable_ = True
-        self._bot_.settings().set_option("modules.{}.enable".format(self._module_name_), True)
+        self._BOT_.SETTINGS.set_option("modules.{}.enable".format(self.NAME), True)
         self.load()
-    
+
     def disable(self):
-        if not self.is_switchable() or not self.is_enabled():
+        if not self.SWITCHABLE or not self.is_enabled():
             return
         self._enable_ = False
-        self._bot_.settings().set_option("modules.{}.enable".format(self._module_name_), False)
+        self._BOT_.SETTINGS.set_option("modules.{}.enable".format(self.NAME), False)
         self.unload()
 
     def is_enabled(self):
-        return not self._switchable_ or self._bot_.settings().get_option("modules.{}.enable".format(self._module_name_), True)
+        return not self.SWITCHABLE or self._BOT_.SETTINGS.get_option("modules.{}.enable".format(self.NAME), True)
 
     def listeners(self):
         return []
-    
+
     def commands(self):
         return []
 
@@ -57,78 +53,80 @@ class BotModule(object):
 
 class ChatLoggerModule(BotModule):
     def __init__(self, bot):
-        super().__init__(consts.MODULE_NAME_CHATLOGGER, bot)
-    
+        super().__init__(vkrine.MODULE_NAME_CHATLOGGER, bot)
+
     def listeners(self):
         return [ChatLogger(self)]
 
+
 class PluginLoaderModule(BotModule):
     def __init__(self, bot):
-        super().__init__(consts.MODULE_NAME_PLUGINLOADER, bot, priority=-1)
-        self._pluginspath_ = "plugins"
-        self._plugins_ = []
+        super().__init__(vkrine.MODULE_NAME_PLUGINLOADER, bot, priority=-1)
+        self.__PLUGINS_PATH__ = "plugins"
+        self.__plugins__ = []
 
-    def _find_plugins_(self):
-        for filename in os.listdir(self._pluginspath_):
-            filepath = "{}/{}".format(self._pluginspath_, filename)
-            filenamesplit = os.path.splitext(filename)
-            if os.path.isfile(filepath) and filenamesplit[1] == ".py":
-                plugin = importlib.import_module("{}.{}".format(self._pluginspath_, filenamesplit[0]))
+    def __find_plugins__(self):
+        for filename in os.listdir(self.__PLUGINS_PATH__):
+            filepath = "{}/{}".format(self.__PLUGINS_PATH__, filename)
+            filename_split = os.path.splitext(filename)
+            if os.path.isfile(filepath) and filename_split[1] == ".py":
+                plugin = importlib.import_module("{}.{}".format(self.__PLUGINS_PATH__, filename_split[0]))
                 for name, obj in inspect.getmembers(plugin):
                     if inspect.isclass(obj) and BotModule in obj.__bases__:
-                        module = obj(self._bot_)
+                        module = obj(self._BOT_)
                         if module.is_enabled():
-                            self._plugins_.append(module)
-        self._plugins_.sort(key=attrgetter("_priority_", "_module_name_"))
+                            self.__plugins__.append(module)
+        self.__plugins__.sort(key=attrgetter("PRIORITY", "NAME"))
 
     def load(self):
-        self._find_plugins_()
-        for plugin in self._plugins_:
+        self.__find_plugins__()
+        for plugin in self.__plugins__:
             if plugin.is_enabled():
                 plugin.load()
 
     def listeners(self):
         result = []
-        for plugin in self._plugins_:
+        for plugin in self.__plugins__:
             if plugin.is_enabled():
                 listeners = plugin.listeners()
-                listeners.sort(key=attrgetter("_priority_"))
+                listeners.sort(key=attrgetter("PRIORITY"))
                 result += listeners
         return result
-        
+
     def commands(self):
         result = []
-        for plugin in self._plugins_:
+        for plugin in self.__plugins__:
             if plugin.is_enabled():
                 result += plugin.commands()
         return result
 
     def unload(self):
-        for plugin in self._plugins_:
+        for plugin in self.__plugins__:
             if plugin.is_enabled():
                 plugin.unload()
 
     def reload(self):
-        self._plugins_.clear()
-        self._find_plugins_()
-        for plugin in self._plugins_:
+        self.__plugins__.clear()
+        self.__find_plugins__()
+        for plugin in self.__plugins__:
             if plugin.is_enabled():
                 plugin.reload()
 
+
 class CommandHandlerModule(BotModule):
     def __init__(self, bot):
-        super().__init__(consts.MODULE_NAME_COMMANDHANDLER, bot, switchable=False)
-    
+        super().__init__(vkrine.MODULE_NAME_COMMANDHANDLER, bot, switchable=False)
+
     def listeners(self):
         return [CommandHandler(self)]
-    
+
     def commands(self):
         return [
-            CommandCaptcha(self), 
-            CommandEcho(self), 
-            CommandHelp(self), 
-            CommandLocale(self), 
-            CommandReload(self), 
-            CommandStop(self), 
-            CommandRoll(self), 
-            ]
+            CommandCaptcha(self),
+            CommandEcho(self),
+            CommandHelp(self),
+            CommandLocale(self),
+            CommandReload(self),
+            CommandStop(self),
+            CommandRoll(self),
+        ]

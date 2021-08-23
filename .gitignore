@@ -168,12 +168,17 @@ dmypy.json
 
 # VS Code project settings
 #############################################
-.vscode
+.vscode/
+.project
+
+# PyCharm project files
+#############################################
+.idea/
 
 #############################################
 # Local .gitignore                          #
 #############################################
 
-# But runtime directory
+# Bot runtime directory
 #############################################
 runtime*/
