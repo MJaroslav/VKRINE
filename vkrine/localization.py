@@ -1,8 +1,10 @@
 import os
-import json
-import vkrine.utils as utils
-from vk_api.longpoll import Event
 import random
+
+from vk_api.bot_longpoll import DotDict as GroupEvent
+from vk_api.longpoll import Event as UserEvent
+
+import vkrine.utils as utils
 from .modules import BotModule
 
 MODULE_NAME = "localization"
@@ -13,10 +15,11 @@ DEFAULT = {
     MAIN_LOCALE_KEY: "en_US"
 }
 
+
 class Localization(BotModule):
     def __init__(self, bot):
         super().__init__(MODULE_NAME, bot)
-        self.FILEPATH = bot.RUNTIME + "/localization.json"
+        self.__FILEPATH__ = self._BOT_.RUNTIME + "/localization.json"
         self.__locales__ = {}
         self.__settings__ = {}
 
@@ -24,24 +27,28 @@ class Localization(BotModule):
         self.load()
 
     def load(self):
-        self.__settings__ = utils.load_json(self.FILEPATH, DEFAULT)
-        dirpath = "locales"
-        for filename in os.listdir(dirpath):
-            filepath = "{}/{}".format(dirpath, filename)
-            filenamesplit = os.path.splitext(filename)
-            if os.path.isfile(filepath) and filenamesplit[1] == ".json":
-                data = utils.load_json(filepath)
-                if data: self.__locales__[filenamesplit[0]] = data
+        self.__settings__ = utils.load_json_from_file(self.__FILEPATH__, DEFAULT)
+        dir_path = "locales"
+        for filename in os.listdir(dir_path):
+            filepath = "{}/{}".format(dir_path, filename)
+            filename_split = os.path.splitext(filename)
+            if os.path.isfile(filepath) and filename_split[1] == ".json":
+                data = utils.load_json_from_file(filepath)
+                if data:
+                    self.__locales__[filename_split[0]] = data
 
     def save(self):
-        utils.save_json(self.__settings__, self.FILEPATH)
+        utils.dump_json_to_file(self.__settings__, self.__FILEPATH__)
 
     def main_locale(self):
         return self.__locales__[self.__settings__[MAIN_LOCALE_KEY]]
 
     def get_locale_key(self, target):
         target_type = type(target)
-        if target_type is Event:
+        if target_type is UserEvent:
+            user_id = str(target.user_id)
+            peer_id = str(target.peer_id)
+        elif target_type is GroupEvent:
             user_id = str(target.user_id)
             peer_id = str(target.peer_id)
         elif target_type is tuple or target_type is list:

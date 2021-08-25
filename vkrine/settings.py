@@ -14,20 +14,23 @@ DEFAULT = {
     }
 }
 
+
 class Settings(BotModule):
     def __init__(self, bot):
         super().__init__(MODULE_NAME, bot)
-        self.FILEPATH = bot.RUNTIME + "/settings.json"
-    
+        self.__FILEPATH__ = self._BOT_.RUNTIME + "/settings.json"
+
+        self.__data__ = None
+
     def load(self):
-        self.__data__ = utils.load_json(self.FILEPATH, DEFAULT)
+        self.__data__ = utils.load_json_from_file(self.__FILEPATH__, DEFAULT)
 
     def reload(self):
         self.load()
 
     def save(self):
-        utils.save_json(self.__data__, self.FILEPATH)
-    
+        utils.dump_json_to_file(self.__data__, self.__FILEPATH__)
+
     def __get_data__(self, chat_id, create_entry=False):
         chat_id = str(chat_id)
         if chat_id in self.__data__:
@@ -58,7 +61,7 @@ class Settings(BotModule):
         while len(keys) > 1:
             if keys[0] not in data:
                 data[keys[0]] = {}
-            data = data[keys[0]]    
+            data = data[keys[0]]
             del keys[0]
         data[keys[0]] = value
         self.save()

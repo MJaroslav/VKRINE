@@ -40,12 +40,12 @@ class CommandNotFoundException(CommandException):
         super().__init__(message, *args, **kwargs)
 
 
-class SyntaxError(CommandException):
+class CommandSyntaxError(CommandException):
     def __init__(self, message, *args, **kwargs):
         if not message:
             message = "commands.generic.syntax"
         super().__init__(message, *args, **kwargs)
 
 
-class WrongUsageException(CommandException):
+class CommandWrongUsageException(CommandException):
     pass
