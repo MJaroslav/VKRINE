@@ -87,7 +87,7 @@ class WeatherCommand(Command):
             else:
                 raise vkrine.exceptions.CommandWrongUsageException(None)
         else:
-            vkrine.MessageBuilder().translated_text("commands.text.weather.bad_token")
+            vkrine.MessageBuilder().translated_text("commands.text.weather.bad_token").send(event)
 
 
 class WeatherModule(BotModule):

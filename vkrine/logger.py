@@ -71,3 +71,30 @@ def __can_log__(level):
 # TODO: Сделать разные виды вывода, как минимум параллельный консоль-файл
 def __print__(text):
     print(text)
+
+
+class VkApiLoggedMethod(object):
+    __slots__ = ('_vk', '_method')
+
+    def __init__(self, vk, method=None):
+        self._vk = vk
+        self._method = method
+
+    def __getattr__(self, method):
+        if '_' in method:
+            m = method.split('_')
+            method = m[0] + ''.join(i.title() for i in m[1:])
+
+        return VkApiLoggedMethod(
+            self._vk,
+            (self._method + '.' if self._method else '') + method
+        )
+
+    def __call__(self, **kwargs):
+        for k, v in kwargs.items():
+            if isinstance(v, (list, tuple)):
+                kwargs[k] = ','.join(str(x) for x in v)
+        params = kwargs if kwargs else "None"
+        result = self._vk.method(self._method, kwargs)
+        finer("[VK API] Method {}, params: {}, result:\n{}", self._method, params, result)
+        return result

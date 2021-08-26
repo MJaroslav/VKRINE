@@ -157,8 +157,12 @@ def parse_message_event_to_string(event):
 
 def bot_is_admin_in_chat(chat_id):
     if chat_id > 2000000000:
-        members = vkrine.bot.get_vk().messages.getConversationMembers(peer_id=chat_id)["items"]
-        return chat_member_is_admin(find_chat_member(members, vkrine.bot.get_id()))
+        # noinspection PyBroadException
+        try:
+            members = vkrine.bot.get_vk().messages.getConversationMembers(peer_id=chat_id)["items"]
+            return chat_member_is_admin(find_chat_member(members, vkrine.bot.get_vk_id_with_type()))
+        except Exception:
+            pass
 
 
 def element_in_dot_star_list(src, check):

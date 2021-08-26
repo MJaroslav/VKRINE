@@ -169,7 +169,7 @@ class CommandLocale(Command):
             if l == 2:
                 locale = args[1]
                 if locale == "default":
-                    bot.l10n().set_locale("@main", "en_US")
+                    bot.L10N.set_locale("@main", "en_US")
                     done(event)
                 elif bot.L10N.has_locale(locale):
                     bot.L10N.set_locale("@main", locale)
@@ -188,7 +188,7 @@ class CommandLocale(Command):
                 if locale == "default":
                     bot.L10N.reset_locale(str(event.peer_id))
                     done(event)
-                elif bot.l10n().has_locale(locale):
+                elif bot.L10N.has_locale(locale):
                     bot.L10N.set_locale(str(event.peer_id), locale)
                     done(event)
                 else:
@@ -211,14 +211,14 @@ class CommandLocale(Command):
                 else:
                     vkrine.MessageBuilder().translated_text("commands.text.locale.not_found", locale).send(event)
             elif l == 1:
-                locale = bot.l10n().get_locale_key(event.user_id)
+                locale = bot.L10N.get_locale_key(event.user_id)
                 vkrine.MessageBuilder().translated_text("commands.text.locale.current", locale).send(event)
             else:
                 raise exceptions.CommandWrongUsageException(None)
         elif is_arg(event, "list", self.get_arg_key("list"), args[0]):
             if l == 1:
                 vkrine.MessageBuilder().translated_text("commands.text.locale.list",
-                                                        ", ".join(bot.l10n().locales())).send(event)
+                                                        ", ".join(bot.L10N.locales())).send(event)
             else:
                 raise exceptions.CommandWrongUsageException(None)
         else:

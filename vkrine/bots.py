@@ -11,7 +11,7 @@ import vkrine
 import vkrine.utils as utils
 from vkrine import exceptions
 from .localization import Localization
-from .modules import ChatLoggerModule, CommandHandlerModule, PluginLoaderModule
+from .modules import LoggerModule, CommandHandlerModule, PluginLoaderModule
 from .permissions import Permissions
 from .settings import Settings
 
@@ -33,7 +33,7 @@ class BotBase(object):
             self.PERMISSIONS,
             self._COMMAND_MODULE_,
             self._PLUGIN_MODULE_,
-            ChatLoggerModule(self)
+            LoggerModule(self)
         ]
         self._register_additional_modules_()
         self._EXECUTOR_ = ThreadPoolExecutor(max_workers=2)
@@ -95,6 +95,9 @@ class BotBase(object):
     def get_vk_id(self):
         return self._id_
 
+    def get_vk_id_with_type(self):
+        return int(self.get_vk_id())
+
     def get_vk_name(self):
         return self._name_
 
@@ -125,7 +128,7 @@ class GroupBot(BotBase):
     def login(self):
         self.__session__ = VkApi(token=self.__TOKEN__)
         self._upload_session_ = VkUpload(self.__session__)
-        self._vk_ = self.__session__.get_api()
+        self._vk_ = vkrine.VkApiLoggedMethod(self.__session__)
         login_info = self.get_vk().groups.getById(group_id=self._id_)[0]
         self._domain_ = login_info["screen_name"]
         self._name_ = login_info["name"]
@@ -136,6 +139,8 @@ class GroupBot(BotBase):
             try:
                 poll = VkBotLongPoll(self.__session__, self.get_vk_id())
                 for event in poll.listen():
+                    if not event:
+                        continue
                     if self.__should_stop__:
                         break
                     event.object.type = event.type
@@ -164,6 +169,9 @@ class GroupBot(BotBase):
     def stop(self):
         self.__should_stop__ = True
 
+    def get_vk_id_with_type(self):
+        return -super().get_vk_id_with_type()
+
 
 class UserBot(BotBase):
     def __init__(self, token, runtime='runtime'):
@@ -177,7 +185,7 @@ class UserBot(BotBase):
     def login(self):
         self.__session__ = VkApi(token=self.__TOKEN__)
         self._upload_session_ = VkUpload(self.__session__)
-        self._vk_ = self.__session__.get_api()
+        self._vk_ = vkrine.VkApiLoggedMethod(self.__session__)
         login_info = self.get_vk().users.get(fields="domain")[0]
         self._id_ = login_info["id"]
         self._domain_ = login_info["domain"]
@@ -189,6 +197,8 @@ class UserBot(BotBase):
             try:
                 poll = VkLongPoll(self.__session__)
                 for event in poll.listen():
+                    if not event:
+                        continue
                     try:
                         if self.__should_stop__:
                             break

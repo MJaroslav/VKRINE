@@ -24,7 +24,9 @@ class MessageListener(EventListener):
         self._CALL_ITSELF_ = call_itself
 
     def _can_call_(self, event, bot):
-        return event.user_id != bot.get_vk_id() or self._CALL_ITSELF_
+        return (event.user_id != bot.get_vk_id() or self._CALL_ITSELF_) \
+               and (not bot.ARCHITECTURE == vkrine.ARCHITECTURE_GROUP or event.peer_id > 2000000000
+                    and utils.bot_is_admin_in_chat(event.peer_id))
 
     def on_event(self, event, bot):
         if (event.type == VkEventType.MESSAGE_NEW or event.type == VkBotEventType.MESSAGE_NEW) and self._can_call_(
@@ -33,6 +35,11 @@ class MessageListener(EventListener):
 
     def _on_message_(self, event, bot):
         raise NotImplementedError()
+
+
+class EventLogger(EventListener):
+    def on_event(self, event, bot):
+        vkrine.finer("[VK API] Long poll event: {}", event.__dict__)
 
 
 class ChatLogger(MessageListener):

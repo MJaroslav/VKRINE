@@ -3,9 +3,8 @@ import inspect
 import os
 from operator import attrgetter
 
-import vkrine
 from .commands import *
-from .eventlisteners import ChatLogger, CommandHandler
+from .eventlisteners import ChatLogger, CommandHandler, EventLogger
 
 
 class BotModule(object):
@@ -51,12 +50,12 @@ class BotModule(object):
         pass
 
 
-class ChatLoggerModule(BotModule):
+class LoggerModule(BotModule):
     def __init__(self, bot):
-        super().__init__(vkrine.MODULE_NAME_CHATLOGGER, bot)
+        super().__init__(vkrine.MODULE_NAME_LOGGER, bot)
 
     def listeners(self):
-        return [ChatLogger(self)]
+        return [EventLogger(self), ChatLogger(self)]
 
 
 class PluginLoaderModule(BotModule):
