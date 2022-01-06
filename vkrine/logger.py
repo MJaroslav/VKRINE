@@ -57,7 +57,7 @@ def __get_level__():
 
 
 def __timestamp__():
-    return datetime.datetime.now().strftime("%d-%m-%Y %H:%M ")
+    return datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S ")
 
 
 def __make_prefix__(level):

@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from threading import Thread, Timer
+from requests.exceptions import ReadTimeout
 
 import requests
 import datetime
@@ -7,6 +7,7 @@ from vk_api import Captcha, VkApi, VkUpload
 from vk_api.bot_longpoll import VkBotEventType, VkBotLongPoll
 from vk_api.longpoll import VkLongPoll
 
+import time
 import vkrine
 import vkrine.utils as utils
 from vkrine import exceptions
@@ -89,28 +90,40 @@ class BotBase(object):
     def run(self):
         raise NotImplementedError()
 
+    def _run_(self):
+        try:
+            self.run()
+        except ReadTimeout:
+            tries_count = 0
+            while not utils.check_connection(r'https://vk.com') and tries_count < 60:
+                tries_count += 1
+                vkrine.warning("Connection lost. Try to reconnect number {}", tries_count)
+                time.sleep(30)
+            if tries_count == 60:
+                vkrine.severe("Can't reconnect. Shutting down...")
+                self.stop()
+            else:
+                vkrine.info("Connection restored")
+
     def start(self):
-        self._event_thread_ = Thread(target=utils.run_loop_with_reconnect,
-                                     args=(self, 60, 30), name="BOT_EVENT_THREAD", daemon=True)
+        self._event_thread_ = utils.LoopThread(target=self._run_, name="BOT_EVENT_THREAD", daemon=True)
         self._event_thread_.start()
-        self._status_thread_ = Timer(60, self._status_update_task_)
-        # noinspection PyProtectedMember
-        self._status_thread_._daemonic = True
+        self._status_thread_ = utils.LoopThread(interval=60,
+                                                target=self._status_update_task_, name="BOT_STATUS_THREAD", daemon=True)
         self._status_thread_.start()
         self._is_alive_ = True
 
     def stop(self):
-        self._status_thread_.cancel()
         self._EXECUTOR_.shutdown(wait=True)
         self.unload_modules()
         self._is_alive_ = False
 
     def join(self):
-        while self._is_alive_:
+        while self.is_alive():
             pass
 
     def is_alive(self):
-        return self._is_alive_
+        return self._is_alive_ and self._event_thread_.is_alive() and self._status_thread_.is_alive()
 
     def get_vk(self):
         return self._vk_

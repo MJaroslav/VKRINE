@@ -5,14 +5,35 @@ import subprocess
 import time
 import urllib.request as request
 
+from threading import Thread
 from vk_api.bot_longpoll import DotDict as GroupEvent
 from vk_api.longpoll import Event as UserEvent
-from requests.exceptions import ReadTimeout
 
 import vkrine
 
 
 __cached_version__ = None
+
+
+class LoopThread(Thread):
+    def __init__(self, continue_condition=None, interval=None, group=None, target=None, name=None,
+                 args=(), kwargs=None, *, daemon=None):
+        super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
+        self._interval_ = interval
+        self._continue_condition_ = continue_condition if continue_condition else True
+
+    def run(self):
+        try:
+            while self._continue_condition_ is True or self._continue_condition_():
+                if self._target:
+                    self._target(*self._args, **self._kwargs)
+                    if self._interval_:
+                        time.sleep(self._interval_)
+                else:
+                    break
+        finally:
+            del self._target, self._args, self._kwargs
+
 
 class MessageBuilder(object):
     def __init__(self, message=""):
@@ -229,23 +250,6 @@ def decode_text(text):
 
 def decode_quot(text):
     return text.replace(r'\"', r'"').replace(r"\'", r"'")
-
-
-def run_loop_with_reconnect(bot, max_tries=60, timeout=30):
-    while True:
-        try:
-            bot.run()
-        except ReadTimeout:
-            tries_count = 0
-            while not check_connection(r'https://vk.com') and tries_count < max_tries:
-                tries_count += 1
-                vkrine.warning("Connection lost. Try to reconnect number {}", tries_count)
-                time.sleep(timeout)
-            if tries_count == max_tries:
-                vkrine.severe("Can't reconnect. Shutting down...")
-                bot.stop()
-            else:
-                vkrine.info("Connection restored")
 
 
 def get_version():
