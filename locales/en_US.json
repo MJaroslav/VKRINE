@@ -44,6 +44,7 @@
         "commands.text.locale.not_found": "That locale can not be found '{}'",
         "commands.text.locale.list": "Locales: {}",
         "commands.text.roll": "You rolled: {}!",
+        "commands.text.roll.bad_range": "<min> must be less than <max>",
         "commands.text.weather.response.bad": "Error on weather service side! API response code: {}",
         "commands.text.weather.bad_token": "Weather service API token not found! Please write to bot owner/developer",
         "commands.text.weather.header": "{icon} Weather in {city}: {desc}",

@@ -122,10 +122,8 @@ class CommandHandlerModule(BotModule):
     def commands(self):
         return [
             CommandCaptcha(self),
-            CommandEcho(self),
             CommandHelp(self),
             CommandLocale(self),
             CommandReload(self),
             CommandStop(self),
-            CommandRoll(self),
         ]
