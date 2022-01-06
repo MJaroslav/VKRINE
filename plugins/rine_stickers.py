@@ -72,12 +72,12 @@ class StickersModule(BotModule):
     def get_sticker(self, event, name):
         try:
             sticker = self.__stickers__[name]
-            vkrine.fine("Found sticker '" + sticker + "' for name '" + name + "'")
+            vkrine.fine("Stickers", "Found sticker '" + sticker + "' for name '" + name + "'")
             return sticker
         except KeyError:
             try:
                 sticker = self.__upload_function__(event, name)
-                vkrine.fine("Created sticker '" + sticker + "' for name '" + name + "'")
+                vkrine.fine("Stickers", "Created sticker '" + sticker + "' for name '" + name + "'")
                 return sticker
             except (FileNotFoundError, KeyError):
                 traceback.print_exc()
