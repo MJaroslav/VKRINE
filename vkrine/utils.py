@@ -211,7 +211,7 @@ def element_in_dot_star_list(src, check):
 
 
 def chat_member_is_admin(member, must_be_owner=False):
-    return 'is_admin' in member and (must_be_owner and member['is_owner'] or member['is_admin'])
+    return 'is_admin' in member and (must_be_owner and 'is_owner' in member and member['is_owner'] or member['is_admin'])
 
 
 def check_connection(url):
