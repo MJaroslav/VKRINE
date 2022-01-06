@@ -242,11 +242,11 @@ def run_loop_with_reconnect(bot, max_tries=60, timeout=30):
 
 def get_version():
     try:
-        tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0'], shell=True).decode().strip()
+        tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
     except subprocess.CalledProcessError:
         tag = "UNKNOWN"
     try:
-        commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], shell=True).decode().strip()
+        commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode().strip()
     except subprocess.CalledProcessError:
         commit = "CUSTOM"
     return tag + "-" + commit
