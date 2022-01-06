@@ -1,8 +1,7 @@
-import time
 from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
 
 import requests
-from requests.exceptions import ReadTimeout
 from vk_api import Captcha, VkApi, VkUpload
 from vk_api.bot_longpoll import VkBotEventType, VkBotLongPoll
 from vk_api.longpoll import VkLongPoll
@@ -37,6 +36,8 @@ class BotBase(object):
         ]
         self._register_additional_modules_()
         self._EXECUTOR_ = ThreadPoolExecutor(max_workers=2)
+        self._event_thread_ = None
+        self._is_alive_ = False
 
         # Должны быть инициализированы в реализации login метода:
         self._vk_ = None
@@ -83,8 +84,23 @@ class BotBase(object):
     def run(self):
         raise NotImplementedError()
 
+    def start(self):
+        self._event_thread_ = Thread(target=utils.run_loop_with_reconnect,
+                                     args=(self, 60, 30), name="BOT_EVENT_THREAD", daemon=True)
+        self._event_thread_.start()
+        self._is_alive_ = True
+
     def stop(self):
-        raise NotImplementedError()
+        self._EXECUTOR_.shutdown(wait=True)
+        self.unload_modules()
+        self._is_alive_ = False
+
+    def join(self):
+        while self._is_alive_:
+            pass
+
+    def is_alive(self):
+        return self._is_alive_
 
     def get_vk(self):
         return self._vk_
@@ -135,39 +151,23 @@ class GroupBot(BotBase):
         vkrine.info("Logged as @club{} ({})", self.get_vk_id(), self.get_vk_name())
 
     def run(self):
-        while not self.__should_stop__:
-            try:
-                poll = VkBotLongPoll(self.__session__, self.get_vk_id())
-                for event in poll.listen():
-                    if not event:
-                        continue
-                    if self.__should_stop__:
-                        break
-                    event.object.type = event.type
-                    event = event.object
-                    if event.type == VkBotEventType.MESSAGE_NEW:
-                        event.user_id = event.from_id
-                    for listener in self._listeners_:
-                        if self.SETTINGS.get_option("multithreading", False):
-                            self._EXECUTOR_.submit(listener.on_event, event, self)
-                        else:
-                            listener.on_event(event, self)
-            except ReadTimeout:
-                reconnect_count = 0
-                while not utils.check_connection(r'https://vk.com') and reconnect_count < 60:
-                    reconnect_count += 1
-                    vkrine.warning("Connection lost. Try to reconnect number {}", reconnect_count)
-                    time.sleep(30)
-                if reconnect_count == 60:
-                    vkrine.severe("Can't reconnect. Shutting down...")
-                    self.stop()
+        poll = VkBotLongPoll(self.__session__, self.get_vk_id())
+        for event in poll.listen():
+            if not event:
+                continue
+            if self.__should_stop__:
+                break
+            event.object.type = event.type
+            event = event.object
+            if event.type == VkBotEventType.MESSAGE_NEW:
+                event.user_id = event.from_id
+            for listener in self._listeners_:
+                if self.SETTINGS.get_option("multithreading", False):
+                    self._EXECUTOR_.submit(listener.on_event, event, self)
                 else:
-                    vkrine.info("Connection restored")
+                    listener.on_event(event, self)
         self._EXECUTOR_.shutdown(wait=True)
         self.unload_modules()
-
-    def stop(self):
-        self.__should_stop__ = True
 
     def get_vk_id_with_type(self):
         return -super().get_vk_id_with_type()
@@ -179,7 +179,6 @@ class UserBot(BotBase):
         self.__TOKEN__ = token
 
         self.current_captcha = None
-        self.__should_stop__ = False
         self.__session__ = None
 
     def login(self):
@@ -193,52 +192,31 @@ class UserBot(BotBase):
         vkrine.info("Logged as @id{} ({})", self.get_vk_id(), self.get_vk_name())
 
     def run(self):
-        while not self.__should_stop__:
+        for event in VkLongPoll(self.__session__).check():
+            if not event:
+                continue
             try:
-                poll = VkLongPoll(self.__session__)
-                for event in poll.listen():
-                    if not event:
-                        continue
-                    try:
-                        if self.__should_stop__:
+                for listener in self._listeners_:
+                    if self.SETTINGS.get_option("multithreading", False):
+                        self._EXECUTOR_.submit(listener.on_event, event, self)
+                    else:
+                        listener.on_event(event, self)
+            except Captcha as captcha1:
+                file_captcha = self.RUNTIME + "/captcha.jpg"
+                with open(file_captcha, "wb") as handle:
+                    response = requests.get(captcha1.url, stream=True)
+                    for block in response.iter_content(1024):
+                        if not block:
                             break
-                        for listener in self._listeners_:
-                            if self.SETTINGS.get_option("multithreading", False):
-                                self._EXECUTOR_.submit(listener.on_event, event, self)
-                            else:
-                                listener.on_event(event, self)
-                    except Captcha as captcha1:
-                        file_captcha = self.RUNTIME + "/captcha.jpg"
-                        with open(file_captcha, "wb") as handle:
-                            response = requests.get(captcha1.url, stream=True)
-                            for block in response.iter_content(1024):
-                                if not block:
-                                    break
-                            handle.write(block)
-                            try:
-                                photo = self.get_upload().photo_messages(file_captcha)[0]
-                                attachment = "photo{}_{}".format(photo["owner_id"], photo["id"])
-                                vkrine.MessageBuilder().translated_text("text.captcha", captcha1.url).attachment(
-                                    attachment).send(event)
-                                self.current_captcha = captcha1
-                            except Captcha as captcha2:
-                                vkrine.severe("Required captcha, see {}/captcha.jpg", self.RUNTIME)
-                                answer = input("Answer: ")
-                                captcha2.try_again(answer)
-                                vkrine.info("Captcha solved")
-            except ReadTimeout:
-                reconnect_count = 0
-                while not utils.check_connection(r'https://vk.com') and reconnect_count < 60:
-                    reconnect_count += 1
-                    vkrine.warning("Connection lost. Try to reconnect number {}", reconnect_count)
-                    time.sleep(30)
-                if reconnect_count == 60:
-                    vkrine.severe("Can't reconnect. Shutting down...")
-                    self.stop()
-                else:
-                    vkrine.info("Connection restored")
-        self._EXECUTOR_.shutdown(wait=True)
-        self.unload_modules()
-
-    def stop(self):
-        self.__should_stop__ = True
+                    handle.write(block)
+                    try:
+                        photo = self.get_upload().photo_messages(file_captcha)[0]
+                        attachment = "photo{}_{}".format(photo["owner_id"], photo["id"])
+                        vkrine.MessageBuilder().translated_text("text.captcha", captcha1.url).attachment(
+                            attachment).send(event)
+                        self.current_captcha = captcha1
+                    except Captcha as captcha2:
+                        vkrine.severe("Required captcha, see {}/captcha.jpg", self.RUNTIME)
+                        answer = input("Answer: ")
+                        captcha2.try_again(answer)
+                        vkrine.info("Captcha solved")

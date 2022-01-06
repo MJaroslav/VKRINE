@@ -39,4 +39,6 @@ if __name__ == "__main__":
 
     bot.login()
     bot.load_modules()
-    bot.run()
+    bot.start()
+
+    bot.join()

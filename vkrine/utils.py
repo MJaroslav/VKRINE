@@ -6,6 +6,7 @@ import urllib.request as request
 
 from vk_api.bot_longpoll import DotDict as GroupEvent
 from vk_api.longpoll import Event as UserEvent
+from requests.exceptions import ReadTimeout
 
 import vkrine
 
@@ -219,3 +220,20 @@ def decode_text(text):
 
 def decode_quot(text):
     return text.replace(r'\"', r'"').replace(r"\'", r"'")
+
+
+def run_loop_with_reconnect(bot, max_tries=60, timeout=30):
+    while True:
+        try:
+            bot.run()
+        except ReadTimeout:
+            tries_count = 0
+            while not check_connection(r'https://vk.com') and tries_count < max_tries:
+                tries_count += 1
+                vkrine.warning("Connection lost. Try to reconnect number {}", tries_count)
+                time.sleep(timeout)
+            if tries_count == max_tries:
+                vkrine.severe("Can't reconnect. Shutting down...")
+                bot.stop()
+            else:
+                vkrine.info("Connection restored")

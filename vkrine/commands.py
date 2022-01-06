@@ -152,8 +152,8 @@ class CommandStop(Command):
         super().__init__(module, "stop")
 
     def run(self, event, bot, line, args):
-        bot.stop()
         done(event)
+        bot.stop()
 
 
 class CommandLocale(Command):

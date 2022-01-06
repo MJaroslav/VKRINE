@@ -17,7 +17,7 @@ LEVELS = [ALL, FINEST, FINER, FINE, CHAT, CONFIG, INFO, WARNING, SEVERE, OFF]
 
 def log(level, text, *args, **kwargs):
     if __can_log__(level):
-        __print__(__make_prefix__(level) + text.format(*args, **kwargs))
+        __print__(level, text.format(*args, **kwargs))
 
 
 def severe(text, *args, **kwargs):
@@ -69,8 +69,9 @@ def __can_log__(level):
 
 
 # TODO: Сделать разные виды вывода, как минимум параллельный консоль-файл
-def __print__(text):
-    print(text)
+def __print__(level, text):
+    for line in text.split("\n"):
+        print(__make_prefix__(level) + line)
 
 
 class VkApiLoggedMethod(object):
