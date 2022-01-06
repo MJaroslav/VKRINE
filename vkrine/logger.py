@@ -1,67 +1,58 @@
 import datetime
 import vkrine
+import threading
 
 ALL = "ALL"
 FINEST = "FINEST"
 FINER = "FINER"
 FINE = "FINE"
-CHAT = "CHAT"
-CONFIG = "CONFIG"
 INFO = "INFO"
 WARNING = "WARNING"
 SEVERE = "SEVERE"
 OFF = "OFF"
 
-LEVELS = [ALL, FINEST, FINER, FINE, CHAT, CONFIG, INFO, WARNING, SEVERE, OFF]
+LEVELS = [ALL, FINEST, FINER, FINE, INFO, WARNING, SEVERE, OFF]
 
 
-def log(level, text, *args, **kwargs):
+def log(level, tag, text, *args, **kwargs):
     if __can_log__(level):
-        __print__(level, text.format(*args, **kwargs))
+        __print__(level, tag, text.format(*args, **kwargs))
 
 
-def severe(text, *args, **kwargs):
-    log(SEVERE, text, *args, **kwargs)
+def severe(tag, text, *args, **kwargs):
+    log(SEVERE, tag, text, *args, **kwargs)
 
 
-def warning(text, *args, **kwargs):
-    log(WARNING, text, *args, **kwargs)
+def warning(tag, text, *args, **kwargs):
+    log(WARNING, tag, text, *args, **kwargs)
 
 
-def info(text, *args, **kwargs):
-    log(INFO, text, *args, **kwargs)
+def info(tag, text, *args, **kwargs):
+    log(INFO, tag, text, *args, **kwargs)
 
 
-def config(text, *args, **kwargs):
-    log(CONFIG, text, *args, **kwargs)
+def fine(tag, text, *args, **kwargs):
+    log(FINE, tag, text, *args, **kwargs)
 
 
-def chat(text, *args, **kwargs):
-    log(CHAT, text, *args, **kwargs)
+def finer(tag, text, *args, **kwargs):
+    log(FINER, tag, text, *args, **kwargs)
 
 
-def fine(text, *args, **kwargs):
-    log(FINE, text, *args, **kwargs)
-
-
-def finer(text, *args, **kwargs):
-    log(FINER, text, *args, **kwargs)
-
-
-def finest(text, *args, **kwargs):
-    log(FINEST, text, *args, **kwargs)
+def finest(tag, text, *args, **kwargs):
+    log(FINEST, tag, text, *args, **kwargs)
 
 
 def __get_level__():
     return vkrine.args.logger_level
 
 
+def __get_thread_name__():
+    return threading.currentThread().name
+
+
 def __timestamp__():
-    return datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S ")
-
-
-def __make_prefix__(level):
-    return __timestamp__() + "[{}] ".format(level)
+    return datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
 
 def __can_log__(level):
@@ -69,9 +60,10 @@ def __can_log__(level):
 
 
 # TODO: Сделать разные виды вывода, как минимум параллельный консоль-файл
-def __print__(level, text):
+def __print__(level, tag, text):
     for line in text.split("\n"):
-        print(__make_prefix__(level) + line)
+        print("{} [{}|{}|{}]: {}"
+              .format(__timestamp__(), __get_thread_name__(), tag, level, line))
 
 
 class VkApiLoggedMethod(object):
@@ -97,5 +89,5 @@ class VkApiLoggedMethod(object):
                 kwargs[k] = ','.join(str(x) for x in v)
         params = kwargs if kwargs else "None"
         result = self._vk.method(self._method, kwargs)
-        finer("[VK API] Method {}, params: {}, result:\n{}", self._method, params, result)
+        finer("VK API", "Method {}, params: {}, result:\n{}", self._method, params, result)
         return result

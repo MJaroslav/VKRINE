@@ -39,12 +39,12 @@ class MessageListener(EventListener):
 
 class EventLogger(EventListener):
     def on_event(self, event, bot):
-        vkrine.finer("[VK API] Long poll event: {}", event.__dict__)
+        vkrine.finer("VK API", "Long poll event: {}", event.__dict__)
 
 
 class ChatLogger(MessageListener):
     def _on_message_(self, event, bot):
-        vkrine.chat(utils.parse_message_event_to_string(event))
+        vkrine.fine("Chat", utils.parse_message_event_to_string(event))
 
 
 class CommandHandler(MessageListener):

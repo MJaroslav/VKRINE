@@ -95,21 +95,22 @@ class BotBase(object):
             self.run()
         except ReadTimeout:
             tries_count = 0
+            vkrine.warning("Net", "Connection lost.")
             while not utils.check_connection(r'https://vk.com') and tries_count < 60:
                 tries_count += 1
-                vkrine.warning("Connection lost. Try to reconnect number {}", tries_count)
+                vkrine.warning("Net", "Try to reconnect number {}", tries_count)
                 time.sleep(30)
             if tries_count == 60:
-                vkrine.severe("Can't reconnect. Shutting down...")
+                vkrine.severe("Net", "Can't reconnect. Shutting down...")
                 self.stop()
             else:
-                vkrine.info("Connection restored")
+                vkrine.info("Net", "Connection restored")
 
     def start(self):
-        self._event_thread_ = utils.LoopThread(target=self._run_, name="BOT_EVENT_THREAD", daemon=True)
+        self._event_thread_ = utils.LoopThread(target=self._run_, name="EventThread", daemon=True)
         self._event_thread_.start()
         self._status_thread_ = utils.LoopThread(interval=60,
-                                                target=self._status_update_task_, name="BOT_STATUS_THREAD", daemon=True)
+                                                target=self._status_update_task_, name="StatusThread", daemon=True)
         self._status_thread_.start()
         self._is_alive_ = True
 
@@ -171,7 +172,7 @@ class GroupBot(BotBase):
         login_info = self.get_vk().groups.getById(group_id=self._id_)[0]
         self._domain_ = login_info["screen_name"]
         self._name_ = login_info["name"]
-        vkrine.info("Logged as @club{} ({})", self.get_vk_id(), self.get_vk_name())
+        vkrine.info("Net", "Logged as @club{} ({})", self.get_vk_id(), self.get_vk_name())
 
     def run(self):
         poll = VkBotLongPoll(self.__session__, self.get_vk_id())
@@ -189,8 +190,6 @@ class GroupBot(BotBase):
                     self._EXECUTOR_.submit(listener.on_event, event, self)
                 else:
                     listener.on_event(event, self)
-        self._EXECUTOR_.shutdown(wait=True)
-        self.unload_modules()
 
     def _status_update_task_(self):
         pass
@@ -215,7 +214,7 @@ class UserBot(BotBase):
         self._id_ = login_info["id"]
         self._domain_ = login_info["domain"]
         self._name_ = login_info["first_name"] + " " + login_info["last_name"]
-        vkrine.info("Logged as @id{} ({})", self.get_vk_id(), self.get_vk_name())
+        vkrine.info("Net", "Logged as @id{} ({})", self.get_vk_id(), self.get_vk_name())
 
     def _status_update_task_(self):
         self._vk_.status.set(text="VKRINE " + utils.get_version() + " last online: " + utils.emoji_numbers_replace(
@@ -246,7 +245,7 @@ class UserBot(BotBase):
                             attachment).send(event)
                         self.current_captcha = captcha1
                     except Captcha as captcha2:
-                        vkrine.severe("Required captcha, see {}/captcha.jpg", self.RUNTIME)
+                        vkrine.severe("Captcha", "Required captcha, see {}/captcha.jpg", self.RUNTIME)
                         answer = input("Answer: ")
                         captcha2.try_again(answer)
-                        vkrine.info("Captcha solved")
+                        vkrine.info("Captcha", "Captcha solved")

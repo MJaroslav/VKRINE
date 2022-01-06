@@ -37,7 +37,7 @@ class LoopThread(Thread):
 
 class MessageBuilder(object):
     def __init__(self, message=""):
-        vkrine.finer('[MessageBuilder] Created instance with base message "{}"', message)
+        vkrine.finest('MessageBuilder', 'Created instance with base message "{}"', message)
         self.__message__ = message
         self.__attachments__ = []
         self.__translate__ = []
@@ -50,31 +50,31 @@ class MessageBuilder(object):
         elif attachments_type is str:
             self.__attachments__ += attachments.split(",")
         else:
-            vkrine.warning("Trying use not allowed type of attachments in MessageBuilder: {}", attachments)
+            vkrine.warning('MessageBuilder', 'Trying use not allowed type of attachments: {}', attachments)
             return self
-        vkrine.finer('[MessageBuilder] Appended attachment list: "{}"', attachments)
+        vkrine.finest('MessageBuilder', 'Appended attachment list: "{}"', attachments)
         return self
 
     def append_attachment(self, attachment):
         self.__attachments__.append(attachment)
-        vkrine.finer('[MessageBuilder] Appended attachment: "{}"', attachment)
+        vkrine.finest('MessageBuilder', 'Appended attachment: "{}"', attachment)
         return self
 
     def newline(self, count=1):
         self.__message__ += "\n" * count
-        vkrine.finer("[MessageBuilder] Added {} empty lines", count)
+        vkrine.finest('MessageBuilder', "Added {} empty lines", count)
         return self
 
     def text(self, text, *args, **kwargs):
         self.__message__ += text.format(*args, **kwargs)
-        vkrine.finer('[MessageBuilder] Added simple formatted text: text "{}", args "{}", kwarg "{}"', text, args,
-                     kwargs)
+        vkrine.finest('MessageBuilder', 'Added simple formatted text: text "{}", args "{}", kwarg "{}"', text, args,
+                      kwargs)
         return self
 
     def translated_text(self, key, *args, **kwargs):
         self.__translate__.append((key, args, kwargs))
         self.__message__ += "{}"
-        vkrine.finer('[MessageBuilder] Added translated formatted text: key "{}", args "{}", kwargs "{}"', key, args,
+        vkrine.finest('MessageBuilder', 'Added translated formatted text: key "{}", args "{}", kwargs "{}"', key, args,
                      kwargs)
         return self
 
@@ -102,8 +102,8 @@ class MessageBuilder(object):
         elif attachment and message:
             self.__BOT__.get_vk().messages.send(peer_id=peer_id, message=message, attachment=attachment,
                                                 random_id=int(time.time() * 1000))
-        vkrine.finer('[MessageBuilder] Message send: peer_id "{}", message "{}", attachment "{}"', peer_id, message,
-                     attachment)
+        vkrine.finest('MessageBuilder', 'Message send: peer_id "{}", message "{}", attachment "{}"', peer_id, message,
+                      attachment)
 
 
 def emoji_numbers(number):
@@ -157,7 +157,7 @@ def load_token(filepath, is_user=False):
     else:
         with open(filepath, "w") as file:
             file.write('Enter token there (if bot architecture is "group", enter group id on next lime)')
-        vkrine.severe("Please, enter bot token to %s file and restart the bot" % os.path.abspath(filepath))
+        vkrine.severe(None, "Please, enter bot token to %s file and restart the bot" % os.path.abspath(filepath))
         quit()
 
 
