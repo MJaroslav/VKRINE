@@ -4,7 +4,7 @@ import sys
 import vkrine
 
 from vkrine.bots import UserBot, GroupBot
-from vkrine.utils import load_token, print_logo, create_dirs_if_not_exists
+from vkrine.utils import load_token, print_logo, create_dirs_if_not_exists, print_version
 
 
 def init():
@@ -15,6 +15,7 @@ def init():
                         metavar='type', help="Select logger log level")
     parser.add_argument("-r", "--runtime", metavar='rundir',
                         help="Select runtime directory, default 'runtime_<architecture>'")
+    parser.add_argument("-v", "--version", required=False, action='store_true', help='Show bot version and exit')
     return parser.parse_args(sys.argv[1:])
 
 
@@ -23,6 +24,10 @@ if __name__ == "__main__":
     print_logo()
 
     args = init()
+
+    if args.version:
+        print_version()
+        sys.exit(0)
     vkrine.args = args
     architecture = args.architecture
     if args.runtime:

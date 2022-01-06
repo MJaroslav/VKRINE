@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import subprocess
 import time
 import urllib.request as request
 
@@ -237,3 +238,23 @@ def run_loop_with_reconnect(bot, max_tries=60, timeout=30):
                 bot.stop()
             else:
                 vkrine.info("Connection restored")
+
+
+def get_version():
+    try:
+        tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0'], shell=True).decode().strip()
+    except subprocess.CalledProcessError:
+        tag = "UNKNOWN"
+    try:
+        commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], shell=True).decode().strip()
+    except subprocess.CalledProcessError:
+        commit = "CUSTOM"
+    return tag + "-" + commit
+
+
+def print_version():
+    version = get_version()
+    print("VKRINE Bot version " + version)
+    if "CUSTOM" in version or "UNKNOWN" in version:
+        print("\nFor knowing correct version required \"git\" command in PATH and bot should be located in its "
+              "cloned repo")
