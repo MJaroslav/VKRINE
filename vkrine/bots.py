@@ -1,7 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
-from threading import Thread
+from threading import Thread, Timer
 
 import requests
+import datetime
 from vk_api import Captcha, VkApi, VkUpload
 from vk_api.bot_longpoll import VkBotEventType, VkBotLongPoll
 from vk_api.longpoll import VkLongPoll
@@ -38,6 +39,7 @@ class BotBase(object):
         self._EXECUTOR_ = ThreadPoolExecutor(max_workers=2)
         self._event_thread_ = None
         self._is_alive_ = False
+        self._status_thread_ = None
 
         # Должны быть инициализированы в реализации login метода:
         self._vk_ = None
@@ -45,6 +47,9 @@ class BotBase(object):
         self._name_ = None
         self._domain_ = None
         self._upload_session_ = None
+
+    def _status_update_task_(self):
+        raise NotImplementedError()
 
     def _register_additional_modules_(self):
         pass
@@ -88,9 +93,14 @@ class BotBase(object):
         self._event_thread_ = Thread(target=utils.run_loop_with_reconnect,
                                      args=(self, 60, 30), name="BOT_EVENT_THREAD", daemon=True)
         self._event_thread_.start()
+        self._status_thread_ = Timer(60, self._status_update_task_)
+        # noinspection PyProtectedMember
+        self._status_thread_._daemonic = True
+        self._status_thread_.start()
         self._is_alive_ = True
 
     def stop(self):
+        self._status_thread_.cancel()
         self._EXECUTOR_.shutdown(wait=True)
         self.unload_modules()
         self._is_alive_ = False
@@ -169,6 +179,9 @@ class GroupBot(BotBase):
         self._EXECUTOR_.shutdown(wait=True)
         self.unload_modules()
 
+    def _status_update_task_(self):
+        pass
+
     def get_vk_id_with_type(self):
         return -super().get_vk_id_with_type()
 
@@ -190,6 +203,10 @@ class UserBot(BotBase):
         self._domain_ = login_info["domain"]
         self._name_ = login_info["first_name"] + " " + login_info["last_name"]
         vkrine.info("Logged as @id{} ({})", self.get_vk_id(), self.get_vk_name())
+
+    def _status_update_task_(self):
+        self._vk_.status.set(text="VKRINE " + utils.get_version() + " last online: " + utils.emoji_numbers_replace(
+            datetime.datetime.now().strftime("%d-%m-%Y %H:%M")))
 
     def run(self):
         for event in VkLongPoll(self.__session__).check():

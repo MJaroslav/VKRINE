@@ -12,6 +12,8 @@ from requests.exceptions import ReadTimeout
 import vkrine
 
 
+__cached_version__ = None
+
 class MessageBuilder(object):
     def __init__(self, message=""):
         vkrine.finer('[MessageBuilder] Created instance with base message "{}"', message)
@@ -88,6 +90,12 @@ def emoji_numbers(number):
     for char in str(number):
         result += vkrine.EMOJI_NUMBERS[int(char)]
     return result
+
+
+def emoji_numbers_replace(string):
+    for i in range(10):
+        string = string.replace(str(i), vkrine.EMOJI_NUMBERS[i])
+    return string
 
 
 def print_logo():
@@ -241,6 +249,9 @@ def run_loop_with_reconnect(bot, max_tries=60, timeout=30):
 
 
 def get_version():
+    global __cached_version__
+    if __cached_version__:
+        return __cached_version__
     try:
         tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode().strip()
     except subprocess.CalledProcessError:
@@ -249,7 +260,8 @@ def get_version():
         commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode().strip()
     except subprocess.CalledProcessError:
         commit = "CUSTOM"
-    return tag + "-" + commit
+    __cached_version__ = tag + "-" + commit
+    return __cached_version__
 
 
 def print_version():
