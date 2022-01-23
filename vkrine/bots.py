@@ -1,13 +1,11 @@
+import datetime
 from concurrent.futures import ThreadPoolExecutor
-from requests.exceptions import ReadTimeout
 
 import requests
-import datetime
 from vk_api import Captcha, VkApi, VkUpload
 from vk_api.bot_longpoll import VkBotEventType, VkBotLongPoll
 from vk_api.longpoll import VkLongPoll
 
-import time
 import vkrine
 import vkrine.utils as utils
 from vkrine import exceptions
@@ -49,6 +47,20 @@ class BotBase(object):
         self._domain_ = None
         self._upload_session_ = None
 
+        # Должнен быть установлен на True после логина и на False при необходимости релогина
+        # Используйте эту переменную для предотвращения двойного логина
+        self._logged_ = False
+
+    def is_logged(self):
+        return self._logged_
+
+    def logout(self):
+        if self._logged_:
+            self._logout_()
+
+    def _logout_(self):
+        raise NotImplementedError()
+
     def _status_update_task_(self):
         raise NotImplementedError()
 
@@ -85,32 +97,23 @@ class BotBase(object):
         return self._commands_
 
     def login(self):
+        if not self._logged_:
+            self._login_()
+
+    def _login_(self):
         raise NotImplementedError()
 
     def run(self):
         raise NotImplementedError()
 
-    def _run_(self):
-        try:
-            self.run()
-        except ReadTimeout:
-            tries_count = 0
-            vkrine.warning("Net", "Connection lost.")
-            while not utils.check_connection(r'https://vk.com') and tries_count < 60:
-                tries_count += 1
-                vkrine.warning("Net", "Try to reconnect number {}", tries_count)
-                time.sleep(30)
-            if tries_count == 60:
-                vkrine.severe("Net", "Can't reconnect. Shutting down...")
-                self.stop()
-            else:
-                vkrine.info("Net", "Connection restored")
-
     def start(self):
-        self._event_thread_ = utils.LoopThread(target=self._run_, name="EventThread", daemon=True)
+        self._event_thread_ = utils.NetworkLoopThread(reconnect_success_target=self.login,
+                                                      reconnect_error_target=self.stop, target=self.run,
+                                                      name="EventThread", daemon=True, timeout_target=self.logout)
         self._event_thread_.start()
-        self._status_thread_ = utils.LoopThread(interval=60,
-                                                target=self._status_update_task_, name="StatusThread", daemon=True)
+        self._status_thread_ = utils.NetworkLoopThread(reconnect_success_target=self.login, interval=60,
+                                                       target=self._status_update_task_,
+                                                       name="StatusThread", daemon=True, timeout_target=self.logout)
         self._status_thread_.start()
         self._is_alive_ = True
 
@@ -165,14 +168,18 @@ class GroupBot(BotBase):
         self.__should_stop__ = False
         self.__session__ = None
 
-    def login(self):
-        self.__session__ = VkApi(token=self.__TOKEN__)
+    def _login_(self):
+        self.__session__ = VkApi(token=self.__TOKEN__, session=utils.SessionTimeoutWrapper(30))
         self._upload_session_ = VkUpload(self.__session__)
         self._vk_ = vkrine.VkApiLoggedMethod(self.__session__)
         login_info = self.get_vk().groups.getById(group_id=self._id_)[0]
         self._domain_ = login_info["screen_name"]
         self._name_ = login_info["name"]
         vkrine.info("Net", "Logged as @club{} ({})", self.get_vk_id(), self.get_vk_name())
+        self._logged_ = True
+
+    def _logout_(self):
+        self._logged_ = False
 
     def run(self):
         poll = VkBotLongPoll(self.__session__, self.get_vk_id())
@@ -206,8 +213,11 @@ class UserBot(BotBase):
         self.current_captcha = None
         self.__session__ = None
 
-    def login(self):
-        self.__session__ = VkApi(token=self.__TOKEN__)
+    def _logout_(self):
+        self._logged_ = False
+
+    def _login_(self):
+        self.__session__ = VkApi(token=self.__TOKEN__, session=utils.SessionTimeoutWrapper(30))
         self._upload_session_ = VkUpload(self.__session__)
         self._vk_ = vkrine.VkApiLoggedMethod(self.__session__)
         login_info = self.get_vk().users.get(fields="domain")[0]
@@ -215,6 +225,7 @@ class UserBot(BotBase):
         self._domain_ = login_info["domain"]
         self._name_ = login_info["first_name"] + " " + login_info["last_name"]
         vkrine.info("Net", "Logged as @id{} ({})", self.get_vk_id(), self.get_vk_name())
+        self._logged_ = True
 
     def _status_update_task_(self):
         self._vk_.status.set(text="VKRINE " + utils.get_version() + " last online: " + utils.emoji_numbers_replace(

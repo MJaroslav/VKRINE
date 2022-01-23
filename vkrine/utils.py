@@ -4,13 +4,15 @@ import re
 import subprocess
 import time
 import urllib.request as request
-
+import vk_api
 from threading import Thread
+
+import requests
+from requests.exceptions import ReadTimeout
 from vk_api.bot_longpoll import DotDict as GroupEvent
 from vk_api.longpoll import Event as UserEvent
 
 import vkrine
-
 
 __cached_version__ = None
 
@@ -33,6 +35,72 @@ class LoopThread(Thread):
                     break
         finally:
             del self._target, self._args, self._kwargs
+
+
+class NetworkLoopThread(LoopThread):
+    def __init__(self, timeout_target=None, reconnect_success_target=None, reconnect_error_target=None, reconnect_timeout=30,
+                 reconnect_attempts=60,
+                 continue_condition=None, interval=None, group=None, target=None, name=None, args=(), kwargs=None,
+                 *, daemon=None):
+        super().__init__(continue_condition, interval, group, target, name, args, kwargs, daemon=daemon)
+        self._reconnect_error_target_ = reconnect_error_target
+        self._reconnect_success_target_ = reconnect_success_target
+        self._reconnect_timeout_ = reconnect_timeout
+        self._reconnect_attempts_ = reconnect_attempts
+        self._timeout_target_ = timeout_target
+
+    def run(self):
+        try:
+            while self._continue_condition_ is True or self._continue_condition_():
+                try:
+                    if self._target:
+                        self._target(*self._args, **self._kwargs)
+                        if self._interval_:
+                            time.sleep(self._interval_)
+                    else:
+                        break
+                except ReadTimeout:
+                    if self._timeout_target_:
+                        self._timeout_target_()
+                    attempts = 0
+                    vkrine.warning("Net", "Connection lost.")
+                    while not check_connection(r'https://vk.com') and attempts < self._reconnect_attempts_:
+                        attempts += 1
+                        vkrine.warning("Net", "Try to reconnect number {}", attempts)
+                        time.sleep(self._reconnect_timeout_)
+                    if attempts == self._reconnect_attempts_:
+                        vkrine.severe("Net", "Can't reconnect. Shutting down...")
+                        if self._reconnect_error_target_:
+                            self._reconnect_error_target_()
+                        break
+                    else:
+                        vkrine.info("Net", "Connection restored")
+                        if self._reconnect_success_target_:
+                            self._reconnect_success_target_()
+        finally:
+            del self._target, self._args, self._kwargs, self._reconnect_error_target_
+
+
+class SessionTimeoutWrapper(requests.Session):
+    def __init__(self, timeout=None):
+        super().__init__()
+        self.timeout = timeout
+        self.headers['User-agent'] = vk_api.vk_api.DEFAULT_USERAGENT
+
+    @property
+    def timeout(self):
+        return self.__timeout__
+
+    @timeout.setter
+    def timeout(self, value):
+        self.__timeout__ = value
+
+    def request(self, method, url, params=None, data=None, headers=None, cookies=None, files=None, auth=None,
+                timeout=None, allow_redirects=True, proxies=None, hooks=None, stream=None, verify=None, cert=None,
+                json=None):
+        return super().request(method, url, params, data, headers, cookies, files, auth,
+                               self.timeout if self.timeout else timeout, allow_redirects,
+                               proxies, hooks, stream, verify, cert, json)
 
 
 class MessageBuilder(object):
@@ -75,7 +143,7 @@ class MessageBuilder(object):
         self.__translate__.append((key, args, kwargs))
         self.__message__ += "{}"
         vkrine.finest('MessageBuilder', 'Added translated formatted text: key "{}", args "{}", kwargs "{}"', key, args,
-                     kwargs)
+                      kwargs)
         return self
 
     def send(self, destination):
@@ -211,7 +279,8 @@ def element_in_dot_star_list(src, check):
 
 
 def chat_member_is_admin(member, must_be_owner=False):
-    return 'is_admin' in member and (must_be_owner and 'is_owner' in member and member['is_owner'] or member['is_admin'])
+    return 'is_admin' in member and (
+            must_be_owner and 'is_owner' in member and member['is_owner'] or member['is_admin'])
 
 
 def check_connection(url):
