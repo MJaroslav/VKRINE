@@ -51,7 +51,7 @@
         "commands.text.weather.body": "&#127777; Temp: {temp} ({feels}&#8451;), from {min}&#8451; to {max}&#8451;\n&#128167; Humidity: {humidity}%\n&#9729; Cloudless: {clouds}%\n&#128168; Wind speed: {speed} m/s",
         "commands.text.weather.footer": "Source {}",
         "help.aliases": "Command aliases: {}",
-        "help.page": "ℹ Commands page {}\nUse 'help <command|page>' for command details or another page\n\n{}",
+        "help.page": "ℹ Commands page {}\\{}\nUse 'help <command|page>' for command details or another page\n\n{}",
         "help.echo": "Bot answer with entered arguments",
         "help.echo.extended": "Bot answer with entered arguments",
         "help.reload": "Update bot files",
@@ -69,6 +69,8 @@
         "help.bash": "Take a bad joke",
         "help.bash.extended": "Post random quote from bash.org",
         "text.captcha.none": "Captcha no needed",
-        "text.captcha": "Enter captcha by 'captcha <answer> command:\n{}'"
+        "text.captcha": "Enter captcha by 'captcha <answer> command:\n{}'",
+        "help.weather": "Показать погоду выбранного места",
+        "help.weather.extended": "Используйте 'weather <location>' чтобы показать погоду для места <location>"
     }
 }

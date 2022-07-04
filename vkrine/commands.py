@@ -229,16 +229,18 @@ class CommandHelp(Command):
 
     def run(self, event, bot, line, args):
         self.__init_pages_lazy__(bot)
-        page = 0
+        page = 1
+        pages = len(self.__pages__)
         command_name = None
         if len(args) > 0:
             try:
-                page = parse_int_bounded(args[0], 0, len(self.__pages__) - 1)
+                page = parse_int_bounded(args[0], 1, pages)
             except exceptions.NumberInvalidException:
                 command_name = args[0]
         if command_name:
             command = bot.get_command(event, command_name)
             aliases = bot.L10N.translate_list(event, command.get_aliases_key())
+            aliases.remove(command.get_aliases_key())
             aliases = "', '".join(aliases)
             if not aliases:
                 aliases = bot.L10N.translate(event, "commands.none")
@@ -248,11 +250,12 @@ class CommandHelp(Command):
                 "help.aliases", aliases).send(event)
         else:
             page_data = []
-            for command in self.__pages__[page]:
+            for command in self.__pages__[page - 1]:
                 text = "{} - {}".format(command.NAME, bot.L10N.translate(event, command.get_help()))
                 page_data.append(text)
             page = utils.emoji_numbers(page)
-            vkrine.MessageBuilder().translated_text("help.page", page, "\n".join(page_data)).send(event)
+            pages = utils.emoji_numbers(pages)
+            vkrine.MessageBuilder().translated_text("help.page", page, pages, "\n".join(page_data)).send(event)
 
 
 class CommandCaptcha(Command):

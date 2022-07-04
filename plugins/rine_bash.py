@@ -10,11 +10,11 @@ from vkrine.modules import BotModule
 
 def bash_im_random_quote():
     agent = vkrine.bot.SETTINGS.get_option("user-agent")
-    req = urllib.request.Request(url="https://bash.im/random", headers={"User-Agent": agent})
+    req = urllib.request.Request(url="http://bashorg.org/casual", headers={"User-Agent": agent})
     with urllib.request.urlopen(req) as f:
         response = f.read()
     soup = BeautifulSoup(response, "html.parser")
-    text_div = soup.find_all('article', class_='quote')[0].find('div', class_='quote__body')
+    text_div = soup.find_all('div', class_='q')[0].find_all('div')[1]
     quote = '\n\n'.join(
         i.strip() for i in text_div.contents
         if isinstance(i, NavigableString) and i != '\n'
